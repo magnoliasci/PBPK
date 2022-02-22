@@ -1,0 +1,1 @@
+{"ymin":0.0,"xmin":0.0,"ylabel":"","variables":[{"name":"ca"},{"name":"cv"},{"name":"cx"}],"xautorange":true,"logx":false,"logy":false,"yautorange":true,"title":"","ymax":100000.0,"xmax":100000.0,"xlabel":"","sliders":[{"maxval":3000.0,"minval":0.0,"name":"conc","position":1500.0,"value":1500.0,"logscale":false}],"parameters":[{"name":"conc"}]}

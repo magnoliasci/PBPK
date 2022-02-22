@@ -1,0 +1,98 @@
+MODEL DCM
+ 
+INITIAL
+ 
+  !Physiological parameters
+  CONSTANT      BW = 0.04   !Body weight (kg)
+  CONSTANT     QCC = 19.0   !Cardiac output (L/hr-1kg)
+  CONSTANT     QPC = 30.0   !Alveolar ventilation (L/hr-1kg)
+  CONSTANT     QLC = 0.24   !Fractional blood flow to liver
+  CONSTANT     QFC = 0.05   !Fractional blood flow to fat
+  CONSTANT     VLC = 0.04   !Fraction liver tissue
+  CONSTANT     VFC = 0.05   !Fraction fat tissue
+ 
+  !Chemical-specific parameters for methylene chloride
+  CONSTANT      PB = 8.3        !Blood/air partition coefficient
+  CONSTANT      PL = 1.7        !Liver/blood partition coefficient
+  CONSTANT      PF = 14.5       !Fat/blood partition coefficient
+  CONSTANT     PRT = 1.0        !Remaining tissue/blood partition
+  CONSTANT      MW = 85.0       !Molecular weight (g/mol)
+  CONSTANT   VMAXC = 14.0       !Capacity of saturable metabolism (mg/hr)
+  CONSTANT      KM = 0.5        !Affinity of saturable metabolism (mg/L)
+  CONSTANT     KFC = 2.0        !Rate constant for 1st order pathway (/hr)
+ 
+  !Calculated parameters
+  VF   = VFC*BW                 !Volume of fat - L
+  VL   = VLC*BW                 !Liver volume - L
+  VRT  = 0.91*BW-VL-VF          !Remaining tissue volume - L
+  QC   = QCC*BW**0.74           !Cardiac output - L/hr
+  QP   = QPC*BW**0.74           !Alveolar ventilation - L/hr
+  QL   = QLC*QC                 !Liver blood flow - L/hr
+  QF   = QFC*QC                 !Fat blood flow - L/hr
+  QRT  = QC-QF-QL               !Remaining tissue blood flow - L/hr
+  VMAX = VMAXC*BW**0.7          !Metabolic capacity - mg/hr
+  KF  = KFC/BW**0.3            !Metabolic rate constant - /hr
+ 
+  !Parameters for simulation of experiment**********************
+  CONSTANT   NMICE = 11.              !Number of animals in chamber
+  CONSTANT    VCHC = 9.1              !Volume of chamber (L)
+  CONSTANT    CONC = 1500.            !Concentration in air (ppm)
+ 
+  CIX  = CONC*MW/24450.      !Concentration in mg/L
+  VCH  = VCHC - NMICE*BW
+  ACH0 = VCH*CONC*MW/24450.  !Initial amount in chamber (mg)
+ 
+  !Timing commands
+  CONSTANT   TSTOP = 24. 	!Length of experiment (hrs)
+  CINTERVAL  CINT  = 0.1 	!Communication interval
+ 
+END     !End of initial
+ 
+DYNAMIC
+ 
+  DERIVATIVE 
+ 
+    !AT = Amount in Remaining Tissues (mg)
+    RART = QRT*(CA-CRT/PRT)
+    ART  = INTEG(RART,0.)
+    CRT  = ART/VRT
+ 
+    !AF = Amount in fat tissue (mg)
+    RAF = QF*(CA-CF/PF) 
+    AF  = INTEG(RAF,0.)
+    CF  = AF/VF
+ 
+    !AL = Amount in liver tissue (mg)
+    RAL = QL*(CA-CL/PL)-RAM
+    AL 	= INTEG(RAL,0.)
+    CL 	= AL/VL 
+ 
+    !AM = Amount metabolized (mg)
+    RAMS = VMAX*CL/PL/(KM+CL/PL)
+    AMS  = INTEG(RAMS,0.)
+    RAML = KF*CL/PL*VL
+    AML  = INTEG(RAML,0.)
+    RAM  = RAMS + RAML
+    AM   = AMS + AML
+ 
+    !CA = Blood concentration (mg/L)
+    RVB = QL*CL/PL+QRT*CRT/PRT+QF*CF/PF
+    CV  = RVB/QC
+    CA  = (QC*CV + QP*CCH)/(QC + QP/PB)
+    CX  = CA/PB
+ 
+    !CCH  = Chamber concentration (mg/L)
+    RACH  = QP*NMICE*(CX-CCH)
+    ACH   = INTEG(RACH,ACH0)
+    CCH   = ACH/VCH
+    CCPPM = CCH*24450./MW
+ 
+    !TMASS = mass balance (mg)
+    TMASS  = AF+AL+ART+AM
+ 
+    TERMT(T >= TSTOP,'simulation stopped on time') 
+ 
+  END       !End of derivative
+ 
+END       !End of dynamic
+END       !End of program

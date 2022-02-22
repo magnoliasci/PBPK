@@ -1,0 +1,100 @@
+MODEL warfarin
+INITIAL
+ 
+  !  Physiological parameters
+  CONSTANT  BW  = 70.0		!Body weight - kg
+  CONSTANT  VLC = 0.03   	!Proportion body as liver tissue
+  CONSTANT  VRC = 0.05   	!Fraction richly perfused tissues
+  CONSTANT  VSC = 0.79   	!Fraction slowly perfused 
+      				!tissues (or Muscle Tissue Group)
+  CONSTANT  VPlasC = 0.04	!Proportion of body as plasma
+  CONSTANT  QCC    = 9.0	!Cardiac output -l/h-kg
+  CONSTANT  QLC    = 0.24 	!Fractional blood flow to Liver
+  CONSTANT  QRC    = 0.52   	!Fractional blood flow to richly perfused tissues
+  CONSTANT  QSC    = 0.24   	!Fractional blood flow to slowly perfused 
+     				!tissues (or Muscle Tissue Group)
+ 
+  !Chemical-specific parameters
+  CONSTANT      PR = 0.2	!Organ partition coefficient
+  CONSTANT      PS = 0.02	!Muscle partition coefficient
+  CONSTANT      PL = 0.2   	!Liver partition coefficient
+  CONSTANT   VMAXC = 1.7     	!Capacity of saturable metabolism (mg/hr)
+  CONSTANT      KM = 2.0   	!Affinity of saturable metabolism (mg/L)
+  CONSTANT  FFPlas = 0.008	!Free fraction in plasma 
+  BFPlas = 1.0 - FFPlas
+  FFR = FFPlas/PR
+  FFS = FFPlas/PS
+  FFL = FFPlas/PL
+ 
+  !Experiment Parameters
+  CONSTANT Tstop = 100.0	!Length of experiment - h
+  CONSTANT  pdose = 1.0		! oral dose - mg/kg
+  CONSTANT   kas = 1.0      	!Absorption rate from stomach (/hr)
+  CONSTANT  frac = 0.5    	!Fraction of S enantiomer in dose
+  dose = frac*pdose*BW
+ 
+  !Calculated parameters
+  VL    = VLC*BW                !Liver volume - L
+  VPlas = VPlasC*BW		!Plasma volume  - L
+  VR    = VRC*BW 		!Volume of richly perfused tissues - L
+  VS    = VSC*BW 		!Volume of slowly perfused tissues - L
+  QC    = QCC*BW**0.74          !Cardiac output - L/h
+  QL    = QLC*QC                !Liver plasma flow - L/h
+  QR    = QRC*QC                !RPT plasma flow - L/h
+  QS    = QSC*QC                !SPT plasma flow - L/h
+  VMAX  = VMAXC*BW**0.74
+ 
+  CINTERVAL CINT=0.01
+ 
+END !End of initial 
+ 
+DYNAMIC 
+ 
+  DERIVATIVE
+ 
+    !Amount in Stomach (mg) -- oral dosing
+    RASt = -kas * ASt
+    ASt  = INTEG(RASt, dose)
+ 
+    !AR = Amount in richly perfused tissues (mg)
+    RAR = QR*(CF-CRF)		!rate of change of amt in RPT-mg/h
+    AR = integ (RAR,0.0)	!amount in RPT - mg
+    CR = AR/VR			!concentration in RPT - mg/L
+    CVR = CB + CRF		!concentration in RPT capillary blood - mg/L
+    CRF = CR*FFR		!free concentration
+ 
+    !AS = Amount in richly perfused tissues (mg)
+    RAS = QS*(CF-CSF)		!rate of change of amt in SPT-mg/h
+    AS = integ (RAS,0.0)	!amount in SPT - mg
+    CS = AS/VS			!concentration in SPT - mg/L
+    CVS = CB + CSF		!concentration in SPT capillary blood - mg/L
+    CSF = CS*FFS		!free concentration
+ 
+    !AL = Amount in liver tissue (mg)
+    Rabs = -RASt
+    RAL = QL*(CF-CLF) - RAM + Rabs	!rate of change of amt in liver - mg/h
+    AL  = integ (RAL, 0.0)	!amount liver - mg
+    CL  = AL/VL 		!concentration in liver - mg/L
+    CVL = CB + CLF		!concentration in liver blood - mg/L
+    CLF = CL*FFL
+ 
+    !AM = Amount metabolized (mg)
+    RAM = VMax*CLF/(Km + CLF)
+    AM  = integ (RAM, 0.0)	!amount metabolized - mg
+ 
+    RAPlas = (QL*CVL) + (QS*CVS) + (QR*CVR) - (QC*CA) !rate of change in amount in plasma - mg/h
+    APlas = integ (RAPlas,0.0)	!amount in plasma - mg
+    CA = APlas/VPlas		!concentration in plasma - mg/L
+    CF = CA*FFPlas
+    CB = CA*BFPlas		!Bound concentrationin plasma
+ 
+    !Mass Balance Equations
+    TMASS = ASt + AS + AR + AL + AM + APlas	!Amount in whole body - mg
+    BAL = dose - TMASS		!Difference in amt dosed and amt in organism (this should equal zero if your code is right)
+ 
+    TERMT(T >= TSTOP,'stopping on time')
+ 
+  END	!End of derivative	
+ 
+END	!End of dynamic
+END	!End of model

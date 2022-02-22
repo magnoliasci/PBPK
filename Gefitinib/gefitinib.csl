@@ -1,0 +1,86 @@
+! Hybrid PK/PK/PBPK model for gefitinib inhibition of EGFR in cancer tumors
+! as described by Wang, et al in
+! Mol Cancer Ther 2008;7(2)
+MODEL Gefitinib
+DYNAMIC
+ 
+ 
+INITIAL
+  CINTERVAL CINT = 0.05
+    
+  ! dosing models
+  constant IVDOSE = 10.0 ! mg/kg
+  constant PODOSE =  0.0 ! mg/kg
+ 
+  constant BW  = 0.02 ! kg
+  constant Vc  = 75.0 ! plasma compartment volume (mL)
+  constant Vt  = 1.3  ! tumor volume (mL)
+ 
+  schedule startdose at 0.0
+  schedule enddose at 0.01
+  
+  IVrate = 0.0
+END
+ 
+DERIVATIVE
+ 
+  ! Dose calculation for oral administration
+  constant F   = 0.45 ! bioavailability
+  constant Ka  = 0.88 ! absorption rate constant (1/h)
+  POrate = F*Ka*PODOSE*exp(-Ka*t)/Vc
+ 
+  ! PK model section
+  ! model constants for LN229-wild-type
+  constant K10 = 0.85 ! intercompartment xfer rate constant (1/h)
+  constant K12 = 1.57 ! intercompartment xfer rate constant (1/h)
+  constant K21 = 0.41 ! intercompartment xfer rate constant (1/h)
+ 
+  dC1 = IVrate + POrate - C1*K12 + C2*K21 - C1*K10
+  dC2 = C1*K12 - C2*K21
+ 
+  constant C10 = 0.0, C20 = 0.0
+  C1 = integ(dC1, C10)
+  C2 = integ(dC2, C20)  
+ 
+  ! Output of PK model is used as forcing function for PBPK section
+  ! forcing function: just set let Cp equal concentration in Comp 1
+  Cp = 1000.0*C1 ! convert from mg/mL to micro g / g
+ 
+  ! PBPK section for tumor
+  constant Q   = 4.5  ! blood flow rate (mL/h)
+  constant Ri  = 8.2  ! tumor to plasma partition coeff
+  constant Ct0 = 0.0
+  dCt = Q*(Cp - Ct/Ri)/Vt
+  Ct = integ(dCt, Ct0)
+ 
+  ! PD model section
+  ! Inhibitory Emax PD model describing inhibition of pERK
+  constant pEGFR0 = 1.0
+  constant Imax   = 1.0
+  ! values for LN229-wild-type EGFR tumor with 10 mg/kg IV dosing
+  constant IC50   = 12.1 ! micro grams / g
+  constant Kin    = 3.6  ! 1/h
+  constant Kout   = 3.3  ! 1/h
+  constant Ktr    = 0.92 ! 1/h
+ 
+  dpEGFR = Kin*(pEGFR0 - (Imax*Ct)/(IC50 + Ct)) - Ktr*pEGFR
+  pEGFR = integ(dpEGFR, pEGFR0)
+ 
+  constant pERK0 = 1.0
+  dpERK = Ktr*pEGFR - Kout*pERK
+  pERK = integ(dpERK, pERK0)
+ 
+  CONSTANT TSTOP = 50.0
+  TERMT (T >= TSTOP, 'Time limit.')
+END ! DERIVATIVE
+ 
+DISCRETE startdose
+  IVrate = (IVDOSE*BW / 0.01) / Vc
+END
+ 
+DISCRETE enddose
+  IVrate = 0.0
+END
+ 
+END ! DYNAMIC
+END ! MODEL
