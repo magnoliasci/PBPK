@@ -1,0 +1,92 @@
+! Single-level butadiene MCMC model
+model
+    
+    ! standard deviation used in error model
+    s1 ~ unif(1e-5, 1000)
+
+    likelihood c_exh ~ norm(c_exh, s1)  
+
+    ! Population-level priors
+
+    ! Means
+    Pct_BDW_wp_m    ~ unif(0.1, 0.35)
+    Pct_Deadspace_m ~ unif(0.23, 0.45)
+    Pct_Flow_fat_m  ~ unif(0.03, 0.09)
+    Pct_Flow_pp_m   ~ unif(0.06, 0.26)
+    Flow_pul_m      ~ unif(4.0, 12.0)
+    PC_art_m        ~ unif(0.75, 2.25)
+    PC_pp_m         ~ unif(0.4, 1.2)
+    PC_wp_m         ~ unif(0.4, 1.2)
+    Kmetwp_m        ~ unif(0.01, 0.6)
+
+    ! Standard deviations
+    ! TODO: need to review these priors
+    Pct_BDW_wp_s    ~ unif(0.1, 0.35)
+    Pct_Deadspace_s ~ unif(0.23, 0.45)
+    Pct_Flow_fat_s  ~ unif(0.03, 0.09)
+    Pct_Flow_pp_s   ~ unif(0.06, 0.26)
+    Flow_pul_s      ~ unif(4.0, 12.0)
+    PC_art_s        ~ unif(0.75, 2.25)
+    PC_pp_s         ~ unif(0.4, 1.2)
+    PC_wp_s         ~ unif(0.4, 1.2)
+    Kmetwp_s        ~ unif(0.01, 0.6)
+
+    level subject
+
+        ! Subject-level priors (these have same name as corresponding model parameters)
+        Pct_BDW_wp    ~ norm(Pct_BDW_wp_m, Pct_BDW_wp_s, 0.1, 0.35)
+        Pct_Deadspace ~ norm(Pct_Deadspace_m, Pct_Deadspace_s, 0.23, 0.45)
+        Pct_Flow_fat  ~ norm(Pct_Flow_fat_m, Pct_Flow_fat_s, 0.03, 0.09)
+        Pct_Flow_pp   ~ norm(Pct_Flow_pp_m, Pct_Flow_pp_s, 0.06, 0.26)
+        Flow_pul      ~ norm(Flow_pul_m, Flow_pul_s, 4.0, 12.0)
+        PC_art        ~ norm(PC_art_m, PC_art_s, 0.75, 2.25)
+        PC_pp         ~ norm(PC_pp_m, PC_pp_s, 0.4, 1.2)
+        PC_wp         ~ norm(PC_wp_m, PC_wp_s, 0.4, 1.2)
+        Kmetwp        ~ norm(Kmetwp_m, Kmetwp_s, 0.01, 0.6)
+
+        ! Experiment levels
+        level s1 ! Subject 1
+
+            experiment s1
+	        data ds1e1, ds1e2
+
+                ! Descriptor variables
+                BDW    = 86.2600
+                height = 1.7400
+                Sex    = 1
+                Age    = 28
+            end
+
+        end
+  
+        level s2 ! Subject 2
+
+            experiment s2
+                data ds2e1, ds2e2
+
+                ! Descriptor variables
+                BDW    = 85.84
+                height = 1.62
+                Sex    = 2
+                Age    = 30
+            end
+
+        end
+
+        level s5 ! Subject 5
+
+	    experiment s5
+                data ds5e1, ds5e2
+
+                ! Descriptor variables
+                BDW    = 61.29 
+                height = 1.67 
+                Sex    = 1 
+                Age    = 37
+            end
+    
+        end
+
+    end
+
+end

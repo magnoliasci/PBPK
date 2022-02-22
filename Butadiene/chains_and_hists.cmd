@@ -1,0 +1,6 @@
+! Plot chains and histograms from previous MCMC run
+line @file='chains.csv' s1 Pct_BDW_wp Pct_Deadspace Pct_Flow_fat Pct_Flow_pp Flow_pul ...
+                        PC_art PC_pp PC_wp Kmetwp
+
+hist @file='chains.csv' @startrow=0 @nbins=25 Pct_BDW_wp Pct_Deadspace Pct_Flow_fat Pct_Flow_pp Flow_pul ...
+                        PC_art PC_pp PC_wp Kmetwp

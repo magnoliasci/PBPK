@@ -1,0 +1,73 @@
+! Single-level butadiene MCMC model
+model
+    
+    ! standard deviation used in error model
+    s1 ~ unif(1e-5, 1e6)
+    s2 ~ unif(1e-5, 1e6)
+    s3 ~ unif(1e-5, 1e6)
+
+    ! Error model
+    likelihood c_exh ~ norm(c_exh, s1)  
+    likelihood Flow_pul_obs ~ norm(Flow_pul, s2)
+    !!!likelihood PC_art_obs ~ norm(PC_art, s3)
+
+    ! Butadiene model parameters
+    Pct_BDW_wp    ~ unif(0.1, 0.35)
+    Pct_Deadspace ~ unif(0.23, 0.45)
+    Pct_Flow_fat  ~ unif(0.03, 0.09)
+    Pct_Flow_pp   ~ unif(0.06, 0.26)
+    Flow_pul      ~ unif(4.0, 12.0)
+    PC_art        ~ unif(0.75, 2.25)
+    PC_pp         ~ unif(0.4, 1.2)
+    PC_wp         ~ unif(0.4, 1.2)
+    Kmetwp        ~ unif(0.01, 0.6)
+
+    level population
+
+        ! Experiment levels
+        experiment s1 ! Subject 1
+            data ds1e1, ds1e2
+        end
+      
+        experiment s2 ! Subject 2
+            data ds2e1, ds2e2
+        end
+    
+        experiment s5 ! Subject 5
+            data ds5e1, ds5e2
+        end
+    
+        !experiment s7 ! Subject 7
+        !    data ds7e1, ds7e2
+        !end
+        
+        !experiment s9 ! Subject 9
+        !    data ds9e1, ds9e2
+        !end
+    
+        !experiment s11 ! Subject 11
+        !    data ds11e1, ds11e2
+        !end
+    
+        !experiment s15 ! Subject 15
+        !    data ds15e1, ds15e2
+        !end
+    
+        !experiment s19 ! Subject 19
+        !    data ds19e1, ds19e2
+        !end
+    
+        !experiment s22 ! Subject 22
+        !    data ds22e1, ds22e2
+        !end
+    
+        !experiment s25 ! Subject 25
+        !    data ds25e1, ds25e2
+        !end
+    
+        !experiment s90 ! Subject 90
+        !    data ds90e1, ds90e2
+        !end
+    
+    end
+end

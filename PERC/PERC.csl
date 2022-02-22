@@ -1,0 +1,146 @@
+model PERC
+! This model was hastily ported from the MCsim PERC.model example
+
+! Constants
+
+!---------------------------------------------------------
+! Nominal values for parameters
+! Units:
+! Volumes: liter
+! Vmax:    mg / minute
+! Weights: kg
+! Km:      mg / minute
+! Time:    minute
+! Flows:   liter / minute
+!---------------------------------------------------------
+!
+constant InhMag   = 50.0    ! PPM
+constant Period   = 24.0    ! Hours
+constant Exposure = 8.0     ! Hours
+
+constant LeanBodyWt = 55    ! lean body weight
+
+! Percent mass of tissues with ranges shown
+constant Pct_M_fat  = .16   ! % total body mass
+constant Pct_LM_liv = .03   ! liver, % of lean mass
+constant Pct_LM_wp  = .17   ! well perfused tissue, % of lean mass
+constant Pct_LM_pp  = .70   ! poorly perfused tissue, recomputed in scale
+
+! Percent blood flows to tissues
+constant Pct_Flow_fat = .09
+constant Pct_Flow_liv = .34
+constant Pct_Flow_wp  = .50 ! will be recomputed in scale
+constant Pct_Flow_pp  = .07
+
+! Tissue/blood partition coeficients
+constant PC_fat = 144
+constant PC_liv = 4.6
+constant PC_wp  = 8.7
+constant PC_pp  = 1.4
+constant PC_art = 12.0
+
+constant Flow_pul   = 8.0    ! Pulmonary ventilation rate (minute volume)
+constant Vent_Perf = 1.14    ! ventilation over perfusion ratio
+
+constant sc_Vmax = .0026     ! scaling coeficient of body weight for Vmax
+
+constant Km = 1.0  
+
+initial
+
+    ! Conversions from/to ppm: 72 ppm = .488 mg/l
+    PPM_per_mg_per_l = 72.0 / 0.488
+    mg_per_l_per_PPM = 1/PPM_per_mg_per_l
+
+    ! Volumes scaled to actual volumes
+    BodyWt = LeanBodyWt/(1 - Pct_M_fat)
+
+    V_fat = Pct_M_fat  * BodyWt/0.92        ! density of fat = 0.92 g/ml
+    V_liv = Pct_LM_liv * LeanBodyWt
+    V_wp  = Pct_LM_wp  * LeanBodyWt
+    V_pp  = 0.9 * LeanBodyWt - V_liv - V_wp ! 10% bones
+
+    ! Calculate Flow_alv from total pulmonary flow
+    Flow_alv = Flow_pul * 0.7
+
+    ! Calculate total blood flow from the alveolar ventilation rate and 
+    ! the V/P ratio.
+    Flow_tot = Flow_alv / Vent_Perf
+ 
+    ! Calculate actual blood flows from total flow and percent flows 
+    Flow_fat = Pct_Flow_fat * Flow_tot
+    Flow_liv = Pct_Flow_liv * Flow_tot
+    Flow_pp  = Pct_Flow_pp  * Flow_tot
+    Flow_wp  = Flow_tot - Flow_fat - Flow_liv - Flow_pp
+
+    ! Vmax (mass/time) for Michaelis-Menten metabolism is scaled
+    ! by multiplication of bdw^0.7 
+    Vmax = sc_Vmax * exp (0.7 * log (LeanBodyWt))
+
+end ! initial
+
+dynamic
+
+    derivative
+
+        C_inh = InhMag*pulse(0.0, Period, Exposure)
+
+        ! Venous blood concentrations at the organ exit
+        Cout_fat = Q_fat / (V_fat * PC_fat)
+        Cout_wp  = Q_wp  / (V_wp  * PC_wp)
+        Cout_pp  = Q_pp  / (V_pp  * PC_pp)
+        Cout_liv = Q_liv / (V_liv * PC_liv)
+
+        ! Sum of Flow * Concentration for all compartments
+        dQ_ven = Flow_fat * Cout_fat + Flow_wp * Cout_wp ...
+                 + Flow_pp * Cout_pp + Flow_liv * Cout_liv
+
+        ! Venous blood concentration
+        C_ven =  dQ_ven / Flow_tot
+
+        ! Arterial blood concentration
+        ! Convert input given in ppm to mg/l to match other units
+        C_art = (Flow_alv * C_inh / PPM_per_mg_per_l +  dQ_ven) / ...
+                (Flow_tot + Flow_alv / PC_art)
+
+        ! Alveolar air concentration
+        C_alv = C_art / PC_art
+
+        ! Exhaled air concentration 
+        C_exh = 0.7 * C_alv + 0.3 * C_inh / PPM_per_mg_per_l
+
+        ! Differentials
+        dQ_exh = Flow_alv * C_alv
+        dQ_fat = Flow_fat * (C_art - Cout_fat)
+        dQ_wp  = Flow_wp  * (C_art - Cout_wp)
+        dQ_pp  = Flow_pp  * (C_art - Cout_pp)
+
+        Q_exh = integ(dQ_exh, 0.0)
+        Q_fat = integ(dQ_fat, 0.0)
+        Q_wp  = integ(dQ_wp, 0.0)
+        Q_pp  = integ(dQ_pp, 0.0)
+
+        ! Quantity metabolized in liver
+        dQmet_liv = Vmax * Q_liv / (Km + Q_liv)
+        dQ_liv = Flow_liv * (C_art - Cout_liv) - dQmet_liv
+        Q_liv  = integ(dQ_liv, 0.0)
+
+        ! Metabolite formation
+        dQmet  = dQmet_liv
+        Qmet = integ(dQmet, 0.0)
+
+        constant tstop = 24.0
+        termt(t >= tstop, 'Time limit.')
+
+    end ! derivative
+
+    ! Fraction of TCE metabolized per day
+
+    Pct_metabolized = rsw(InhMag > 0.0, Qmet / (1440 * Flow_alv * InhMag * mg_per_l_per_PPM), 0.0)
+
+    C_exh_ug  = C_exh * 1000   ! milli to micrograms# Fraction of TCE metabolized per day
+
+
+end ! dynamic
+
+end ! model
