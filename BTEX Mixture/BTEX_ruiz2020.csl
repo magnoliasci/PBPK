@@ -1,0 +1,407 @@
+model BTEX
+
+initial
+
+    ! Simulation Parameters
+    constant CONCx = 100.0   				! Inhaled XYL Concentration (ppm)
+    constant CONCt = 100.0   				! Inhaled TOL Concentration (ppm)
+    constant CONCe = 100.0   				! Inhaled EBZ Concentration (ppm)
+    constant CONCb = 100.0   				! Inhaled BEN Concentration (ppm)
+    constant DUREE = 7.0					! Exposure duration (hours)
+    constant TSTOP = 12.0   				! Hours of simulation
+    cinterval CINT = 0.05					! Communication interval
+    
+    ! Physiologic Parameters  
+    constant BW = 60			     		! body weight in kg
+    constant KQCR = 18.0     				! cardiac output const at rest (L/hr/kg)
+    constant KQALVR = 18.0   				! alveolar ventilation rate const at rest (L/hr/kg)
+      
+    ! VOLUMES (fraction of BW) 
+    constant KVG = 0.19   					! Fat
+    constant KVF = 0.026   					! Liver
+    constant KVMP = 0.62  					! Poorly perf
+    constant KVR = 0.05   					! Richly perf
+    
+    ! TISSUE BLOOD FLOWS (fraction of QC)  
+    constant KQGR = 0.05   					! Fat
+    constant KQFR = 0.26   					! Liver
+    constant KQR = 0.44    					! Poorly perf
+    constant KQMP = 0.25   					! Richly perf
+     
+    ! Physicochem and Biochem Parameters
+    
+    ! ETHYLBENZENE  
+    constant PRBe = 28.0     				! Blood/air partition coefficient
+    constant KPRFe = 83.8     				! Liver/air partition coefficient
+    constant KPRGe = 1556.0  				! Fat/air partition coefficient
+    constant KPRRe = 60.3    				! Rich.perf./air partition coefficient
+    constant KPRMPe = 26.0    				! Poor.perf./air partition coefficient
+    constant PMe = 106.16   				! Molecular weight (g/mol)
+    constant KVMAXe = 7.3   				! Max velocity (mg/hr/kg)
+    constant KMe = 1.39    					! Michaelis constant (mg/l)
+    constant Kiex = 0.505    				! Inhib. Const EBZ vs XYL (mg/l)
+    constant Kiet = 0.168    				! Inhib Const EBZ vs TOL (mg/l)
+    constant Kieb = 0.256    				! Inhib Const EBZ vs BEN (mg/l)
+    
+    ! TOLUENE 
+    constant PRBt = 15.6     				! Blood/air partition coefficient
+    constant KPRFt = 83.6    				! liver/air partition coefficient  
+    constant KPRGt = 1021.0  				! Fat/air partition coefficient
+    constant KPRRt = 83.6    				! Rich.perf./air partition coefficient
+    constant KPRMPt= 27.7    				! Poor.perf./air partition coefficient
+    constant PMt  = 92.14    				! Molecular weight (g/mol)
+    constant KVMAXt = 4.8   				! Max velocity  (mg/hr/kg)
+    constant KMt  = 0.134  					! Michaelis constant (mg/l) 
+    constant Kitx = 0.357    				! Inhib Const TOL vs XYL (mg/l)
+    constant Kite = 0.948    				! Inhib Const TOL vs EBZ (mg/l)
+    constant Kitb = 0.144    				! Inhib Const TOL vs BEN (mg/l)
+    
+    ! XYLENE 
+    constant PRBx = 26.4    				! Blood/air partition coefficient
+    constant KPRFx = 90.9     				! Liver/air partition coefficient  
+    constant KPRGx = 1859.0  				! Fat/air partition coefficient  
+    constant KPRRx = 90.9    				! Rich.perf./air partition coefficient
+    constant KPRMPx = 41.9    				! Poor.perf./air partition coefficient
+    constant PMx = 106.17   				! Molecular weight (g/mol)
+    constant KVMAXx = 5.5     				! Max velocity (mg/hr/kg)
+    constant KMx = 0.22    					! Michaelis const (mg/l)
+    constant Kixt = 0.328    				! Inhib Const XYL vs TOL (mg/l)
+    constant Kixe = 1.667    				! Inhib Const XYL vs EBZ (mg/l)
+    constant Kixb = 0.216    				! Inhib Const XYL vs BEN (mg/l)
+    
+    ! BENZENE  
+    constant PRBb = 15.0     				! Blood/air partition coefficient
+    constant KPRFb = 17.0     				! Liver/air partition coefficient
+    constant KPRGb = 500.0   				! Fat/air partition coefficient  
+    constant KPRRb = 17.0    				! Rich.perf./air partition coefficient
+    constant KPRMPb = 15.0    				! Poor.perf./air partition coefficient
+    constant PMb = 78.2     				! Molecular weight (g/mol)
+    constant KVMAXb = 2.11     				! Max velocity (mg/hr/kg)
+    constant KMb = 0.099    				! Michaelis const (mg/l)
+    constant Kibt = 0.223    				! Inhib Const BEN vs TOL (mg/l)
+    constant Kibe = 0.626    				! Inhib Const BEN vs EBZ (mg/l)
+    constant Kibx = 0.226    				! Inhib Const BEN vs XYL (mg/l)
+    
+    constant INTER = 0       				! switch (1 comp) (2 noncomp) (3 incomp)
+    
+    ! Calculated Allometrically Scaled Parameters (^0.75)
+    QC = KQCR*BW**0.75      				! Cardiac output (L/hr)
+    QALV = KQALVR*BW**0.75  				! Alveolar ventilation rate (L/hr)
+    VMAXt=KVMAXt*BW**0.75  					! Max metabolic rate TOL (mg/hr)
+    VMAXx=KVMAXx*BW**0.75  					! Max metabolic rate XYL (mg/hr)
+    VMAXe=KVMAXe*BW**0.75  					! Max metabolic rate EBZ (mg/hr)
+    VMAXb=KVMAXb*BW**0.75  					! Max metabolic rate BEN (mg/hr)
+    
+    ! VOLUMES
+    VR = KVR*BW      						! Rich. perf. tissues (l)
+    VMP = KVMP*BW     						! Poor. perf. tissues (l)
+    VG = KVG*BW      						! Fat (l)
+    VF = KVF*BW      						! Liver (l)
+    
+    ! TISSUE BLOOD FLOWS
+    QG = KQGR*QC  						    ! Fat (l/hr)
+    QF = KQFR*QC  						    ! Liver (l/hr)
+    QR = KQR*QC   						    ! Rich. perf. tissues (l/hr)
+    QMP = KQMP*QC  						    ! Poor. perf. tissues (l/hr)
+    
+    ! PARTITION COEFFICIENT
+    PRFt = KPRFt/PRBt   					! Liver/blood partition coefficient TOL
+    PRGt = KPRGt/PRBt   					! Fat/blood partition coefficient TOL
+    PRRt = KPRRt/PRBt   					! Rich.perf./blood TOL
+    PRMPt= KPRMPt/PRBt  					! Poor.perf./blood TOL
+    PRFx = KPRFx/PRBx   					! Liver/blood partition coefficient XYL
+    PRGx = KPRGx/PRBx   					! Fat/blood partition coefficient XYL
+    PRRx = KPRRx/PRBx  						! Rich.perf./blood XYL
+    PRMPx = KPRMPx/PRBx  					! Poor.perf./blood XYL
+    PRFe = KPRFe/PRBe   					! Liver/blood partition coefficient EBZ
+    PRGe = KPRGe/PRBe   					! Fat/blood partition coefficient EBZ
+    PRRe = KPRRe/PRBe   					! Rich.perf./blood EBZ
+    PRMPe= KPRMPe/PRBe  					! Poor.perf./blood EBZ
+    PRFb = KPRFb/PRBb   					! Liver/blood partition coefficient BEN
+    PRGb = KPRGb/PRBb   					! Fat/blood partition coefficient BEN
+    PRRb = KPRRb/PRBb   					! Rich.perf./blood BEN
+    PRMPb = KPRMPb/PRBb  					! Poor.perf./blood BEN
+    
+    ! EXPOSURE CONCENTRATION (mg/L)
+    CEXPOx = CONCx*PMx/(24.45*1000)    		! Exposure Conc. XYL (mg/L)
+    CEXPOt = CONCt*PMt/(24.45*1000)     	! Exposure Conc. TOL (mg/L)
+    CEXPOe = CONCe*PMe/(24.45*1000)    		! Exposure Conc. EBZ (mg/L)
+    CEXPOb = CONCb*PMb/(24.45*1000)    		! Exposure Conc. BEN (mg/L)
+    
+    ! Repeat dosing, method 1: use a bunch of SCHEDULE statements
+    ! to schedule discrete events.
+    dimension integer i  ! Used for loop indexing
+    
+    ! Method 1.1: if the exposures are regularly spaced, just set the discrete
+    ! events up in a FOR loop (look for the event sections just below)
+    constant num_exposures = 10
+    constant exp_dur = 8.0
+    for i = 1, num_exposures
+        schedule exp_on at (i - 1)*24
+        schedule exp_off at (i - 1)*24 + exp_dur
+    end
+    
+    ! Method 1.2: put all the exposure times in an array and use
+    ! a FOR loop to schedule discrete events; this is useful when exposure
+    ! times vary
+    dimension exp_on_times[4], exp_durs[4]
+    constant exp_on_times = 0.0, 24.0, 48.0, 72.0
+    constant exp_durs = 8.0, 4.0, 6.0, 12.0
+    for i = 1, 4
+        schedule exp_on at exp_on_times[i]
+        schedule exp_off at exp_on_times[i] + exp_durs[i]
+    end
+    
+end
+
+! Implementation of discrete secions used in method 1.1 and 1.2
+discrete exp_on
+    ! Set the exposure variable to whatever it needs to be, eg:
+    ! EXPFLAG = 1.0
+end
+
+discrete exp_off
+    ! Set the exposure parameter to zero, eg:
+    ! EXPFLAG = 0.0
+end
+
+! Repeat dosing, method 3: INTERVAL statement
+! Use the INTERVAL statement to have discrete events triggered
+! automatically at a regular interval
+discrete exp_on_2
+    ! This discrete section will be triggered automatically
+    ! at the interval indicated here, starting at T = 0
+    interval exp_interval = 24.0
+    ! Set the exposure variable to whatever it needs to be, eg:
+    ! EXPFLAG = 1.0
+    
+    ! While we're here, schedule the event to turn off exposure
+    schedule exp_off at t + exp_dur
+end
+
+derivative
+
+    ! Repeat dosing, method 4: the PULSE statement
+    ! This is the old-school ACSL way.  Works OK as long as the exposure
+    ! time is large compared to the CINT value.  Otherwise you
+    ! can get into trouble.
+    
+    ! Selection of exposure scenario; conc.,duration,repetition
+    ! TSTOP controls number of exposure days
+    ! Exposed for DUREE hrs for every 24hr
+    JOURNE = pulse(0.0, 24.0, DUREE)  	
+    
+    CIx = JOURNE*CEXPOx   					    ! Inhaled air concentration XYL (mg/L)
+    CIt = JOURNE*CEXPOt   						! Inhaled air concentration TOL (mg/L)
+    CIe = JOURNE*CEXPOe   					    ! Inhaled air concentration EBZ (mg/L)
+    CIb = JOURNE*CEXPOb   					    ! Inhaled air concentration BEN (mg/L)
+
+    !
+    ! Solvent in lungs and blood
+    !
+    
+    ! XYLENE
+    CAx = (QC*CVx+QALV*CIx)/(QC+(QALV/prbx))		! Arterial blood Conc. (mg/l)
+    CEXPx = CAx/prbx                          		! Expired air Conc. (mg/l)
+    CPPMx = CEXPx*1000*24.45/PMx              		! Expired air Conc. (ppm)
+    CVx = (QF*CVFx+QG*CVGx+QR*CVRx+QMP*CVMPx)/QC  	! Venous blood Conc. (mg/l)
+    SSx = integ(CVx, 0.0)							! AUC in venous blood (mg.hr/L)
+    
+    ! ETHYLBENZENE
+    CAe = (QC*CVe+QALV*CIe)/(QC+(QALV/prbe))  		! Arterial blood Conc. (mg/l)
+    CEXPe = CAe/prbe                         		! Expired air Conc. (mg/l)
+    CPPMe = CEXPe*1000*24.45/PMe              		! Expired air Conc. (ppm)
+    CVe = (QF*CVFe+QG*CVGe+QR*CVRe+QMP*CVMPe)/QC  	! Venous blood Conc. (mg/l)
+    SSe = integ(CVe, 0.0)							! AUC in venous blood (mg.hr/L)
+    
+    ! TOLUENE
+    CAt = (QC*CVt+QALV*CIt)/(QC+(QALV/prbt))  		! Arterial blood Conc. (mg/l)
+    CEXPt = CAt/prbt                          		! Expired air Conc. (mg/l)
+    CPPMt = CEXPt*1000*24.45/PMt             		! Expired air Conc. (ppm)
+    CVt = (QF*CVFt+QG*CVGt+QR*CVRt+QMP*CVMPt)/QC  	! Venous blood Conc. (mg/l)
+    SSt = integ(CVt, 0.0)							! AUC in venous blood (mg.hr/L)
+
+    ! BENZENE
+    CAb = (QC*CVb+QALV*CIb)/(QC+(QALV/prbb))  		! Arterial blood Conc. (mg/l)
+    CEXPb = CAb/prbb                          		! Expired air Conc. (mg/l);
+    CPPMb = CEXPb*1000*24.45/PMb              		! Expired air Conc. (ppm)
+    CVb = (QF*CVFb+QG*CVGb+QR*CVRb+QMP*CVMPb)/QC  	! Venous blood Conc. (mg/l)
+    SSb = integ(CVb, 0.0)							! AUC in venous blood (mg.hr/L)
+
+    !
+    ! Solvent in liver
+    !
+    
+    ! XYLENE
+    TAFx = QF*CAx-QF*CVFx-TMETx           			! Accum. rate in liver (mg/hr)
+    AFx = integ(TAFx, 0.0)							! Amount in liver (mg)
+    CFx = AFx/VF                  			        ! Conc. in liver (mg/l)
+    CVFx = CFx/prfx                       			! Conc. in venous blood leaving liver (mg/l)
+    
+    ! TOLUENE
+    TAFt = QF*CAt-QF*CVFt-TMETt           			! Accum. rate in liver (mg/hr)
+    AFt = integ(TAFt, 0.0)							! Amount in liver (mg)
+    CFt = AFt/VF                         		 	! Conc. in liver (mg/l)
+    CVFt = CFt/prft                       			! Conc. in venous blood leaving liver (mg/l)
+    
+    ! ETHYLBEZENE
+    TAFe = QF*CAe-QF*CVFe-TMETe           			! Accum. rate in liver (mg/hr)
+    AFe = integ(TAFe, 0.0)							! Amount in liver (mg/hr)
+    CFe = AFe/VF                          			! Conc. in liver (mg/l)
+    CVFe = CFe/prfe                       			! Conc. in venous blood leaving liver (mg/l)
+    
+    ! BENZENE
+    TAFb = QF*CAb-QF*CVFb-TMETb          			! Accum. rate in liver (mg/hr)
+    AFb = integ(TAFb, 0.0)							! Amount in liver (mg)
+    CFb = AFb/VF                          			! Conc. in liver (mg/l)
+    CVFb = CFb/prfb                       			! Conc. in venous blood leaving liver (mg/l)
+
+    !
+    ! Solvent in richly perfused tissues
+    !
+    
+    ! XYLENE
+    TARx = QR*(CAx-CVRx)           					! Accum. rate in RP tissues (mg/hr)
+    ARx = integ(TARx, 0.0)							! Amount in RP tissues (mg)
+    CRx = ARx/VR                   					! Conc. in RP tissues (mg/l)
+    CVRx = CRx/prrx                				    ! Conc. in venous blood leaving RP tissues (mg/l)
+    
+    ! TOLUENE
+    TARt = QR*(CAt-CVRt)           					! Accum. rate in RP tissues (mg/hr)
+    ARt = integ(TARt, 0.0)							! Amount in RP tissues (mg)
+    CRt = ARt/VR                  					! Conc. in RP tissues (mg/l)
+    CVRt = CRt/prrt                					! Conc. in venous blood leaving RP tissues (mg/l)
+    
+    ! ETHYLBENZENE
+    TARe = QR*(CAe-CVRe)           					! Accum. rate in RP tissues (mg/hr)
+    ARe = integ(TARe, 0.0)							! Amount in RP tissues (mg)
+    CRe = ARe/VR                   					! Conc. in RP tissues (mg/l)
+    CVRe = CRe/prre                					! Conc. in venous blood leaving RP tissues (mg/l)
+    
+    ! BENZENE
+    TARb = QR*(CAb-CVRb)           					! Accum. rate in RP tissues (mg/hr)
+    ARb = integ(TARb, 0.0)						    ! Amount in RP tissues (mg)
+    CRb = ARb/VR                   					! Conc. in RP tissues (mg/l)
+    CVRb = CRb/prrb                				    ! Conc. in venous blood leaving RP tissues (mg/l)
+    
+    !    
+    ! Solvent in fat
+    !
+    
+    ! XYLENE
+    TAGx = QG*(CAx-CVGx)           					! Accum. rate in fat (mg/hr)
+    AGx = integ(TAGx, 0.0)							! Amount in fat (mg)
+    CGx = AGx/VG                   					! Conc. in fat (mg/l)
+    CVGx = CGx/prgx                					! Conc. in venous blood leaving fat (mg/l)
+    
+    ! TOLUENE
+    TAGt = QG*(CAt-CVGt)           					! Accum. rate in fat (mg/hr)
+    AGt = integ(TAGt, 0.0)							! Amount in fat (mg)
+    CGt = AGt/VG                   					! Conc. in fat (mg/l)
+    CVGt = CGt/prgt                					! Conc. in venous blood leaving fat (mg/l)
+    
+    ! ETHYLBENZNE
+    TAGe = QG*(CAe-CVGe)           					! Accum. rate in fat (mg/hr)
+    AGe = integ(TAGe, 0.0)							! Amount in fat (mg)
+    CGe = AGe/VG                   					! Conc. in fat (mg/l)
+    CVGe = CGe/prge                					! Conc. in venous blood leaving fat (mg/l)
+    
+    ! BENZENE
+    TAGb = QG*(CAb-CVGb)           					! Accum. rate in fat (mg/hr)
+    AGb = integ(TAGb, 0.0)							! Amount in fat (mg)
+    CGb = AGb/VG                   					! Conc. in fat (mg/l)
+    CVGb = CGb/prgb                					! Conc. in venous blood leaving fat (mg/l)
+
+    !
+    ! Solvent in poorly perfused tissues
+    !
+
+    ! XYLENE
+    TAMPx = QMP*(CAx-CVMPx)    					    ! Accum. rate in PP tissues (mg/hr)
+    AMPx = integ(TAMPx, 0.0)					    ! Amount in PP tissues (mg)
+    CMPx = AMPx/VMP            					    ! Conc. in PP tissues (mg/l)
+    CVMPx = CMPx/prmpx         				        ! Conc. in venous blood leaving PP tissues (mg/l)
+
+    ! TOLUENE
+    TAMPt = QMP*(CAt-CVMPt)     					! Accum. rate in PP tissues (mg/hr)
+    AMPt = integ(TAMPt, 0.0)						! Amount in PP tissues (mg)
+    CMPt = AMPt/VMP             					! Conc. in PP tissues (mg/l)
+    CVMPt = CMPt/prmpt          				    ! Conc. in venous blood leaving PP tissues (mg/l)
+    
+    ! ETHYLBENZENE
+    TAMPe = QMP*(CAe-CVMPe)     					! Accum. rate in PP tissues (mg/hr)
+    AMPe = integ(TAMPe, 0.0)						! Amount in PP tissues (mg)
+    CMPe = AMPe/VMP             					! Conc. in PP tissues (mg/l)
+    CVMPe = CMPe/prmpe          				    ! Conc. in venous blood leaving PP tissues (mg/l)
+    
+    ! BENZENE
+    TAMPb = QMP*(CAb-CVMPb)     					! Accum. rate in PP tissues (mg/hr)
+    AMPb = integ(TAMPb, 0.0)						! Amount in PP tissues (mg)
+    CMPb = AMPb/VMP             					! Conc. in PP tissues (mg/l)
+    CVMPb = CMPb/prmpb          				    ! Conc. in venous blood leaving PP tissues (mg/l)
+
+    !
+    ! Selection of type of metabolic interaction
+    !
+    
+    if(INTER == 0)          ! No interaction
+	    TMETt = VMAXt*CVFt/(KMt+CVFt)
+		TMETe = VMAXe*CVFe/(KMe+CVFe)
+	    TMETx = VMAXx*CVFx/(KMx+CVFx)
+	    TMETb = VMAXb*CVFb/(KMb+CVFb)
+	else if(INTER == 1)     ! Competitive inhibition
+    	TMETt = VMAXt*CVFt/(KMt*(1+CVFx/Kixt+CVFe/Kiet+CVFb/Kibt)+CVFt)
+    	TMETe = VMAXe*CVFe/(KMe*(1+CVFx/Kixe+CVFt/Kite+CVFb/Kibe)+CVFe)
+    	TMETx = VMAXx*CVFx/(KMx*(1+CVFt/Kitx+CVFe/Kiex+CVFb/Kibx)+CVFx)
+    	TMETb = VMAXb*CVFb/(KMb*(1+CVFx/Kixb+CVFt/Kitb+CVFe/Kieb)+CVFb)	
+    else if(INTER == 2)     ! Noncompetitive inhibition
+    	TMETt = VMAXt*CVFt/((KMt+CVFt)*(1+(CVFx/Kixt+CVFe/Kiet+CVFb/Kibt)))
+    	TMETe = VMAXe*CVFe/((KMe+CVFe)*(1+(CVFx/Kixe+CVFt/Kite+CVFb/Kibe)))
+    	TMETx = VMAXx*CVFx/((KMx+CVFx)*(1+(CVFt/Kitx+CVFe/Kiex+CVFb/Kibx)))
+    	TMETb = VMAXb*CVFb/((KMb+CVFb)*(1+(CVFx/Kixb+CVFt/Kitb+CVFe/Kieb)))	
+    else                    ! Uncompetitive inhibition
+    	TMETt = VMAXt*CVFt/(KMt+(CVFt*(1+(CVFx/Kixt+CVFe/Kiet+CVFb/Kibt))))
+    	TMETe = VMAXe*CVFe/(KMe+(CVFe*(1+(CVFx/Kixe+CVFt/Kite+CVFb/Kibe))))
+    	TMETx = VMAXx*CVFx/(KMx+(CVFx*(1+(CVFt/Kitx+CVFe/Kiex+CVFb/Kibx))))
+    	TMETb = VMAXb*CVFb/(KMb+(CVFb*(1+(CVFx/Kixb+CVFt/Kitb+CVFe/Kieb))))
+    end
+
+    ! Total amounts metabolized
+    METt = integ(TMETt, 0.0)
+	METe = integ(TMETe, 0.0)
+    METx = integ(TMETx, 0.0)
+    METb = integ(TMETb, 0.0)
+    
+    !    
+    ! Mass balance
+    !
+
+    ! XYLENE
+	TACCx = QALV*(CIx-CEXPx)  					! Accum. rate in the organism (mg/hr)
+	ACCx = integ(TACCx, 0.0)					! Amount accumulated in organism (mg)
+	TISSx = ARx+AGx+AMPx+AFx+METx  				! Sum of amounts present in tissues and metabolized
+	BILANx = ACCx-TISSx       					! CHECK balance must equal zero
+
+    ! TOLUENE
+	TACCt = QALV*(CIt-CEXPt)   					! Accum. rate in the organism (mg/hr)
+	ACCt = integ(TACCt, 0.0)					! Amount accumulated in organism (mg)
+	TISSt = ARt+AGt+AMPt+AFt+METt  				! Sum of amounts present in tissues and metabolized
+	BILANt = ACCt-TISSt        					! CHECK balance must equal zero
+
+    ! ETHYLBENZENE
+	TACCe = QALV*(CIe-CEXPe)   					! Accum. rate in the organism (mg/hr)
+	ACCe = integ(TACCe, 0.0)					! Amount accumulated in organism (mg)
+	TISSe = ARe+AGe+AMPe+AFe+METe  				! Sum of amounts present in tissues and metabolized
+	BILANe = ACCe-TISSe       					! CHECK balance must equal zero
+
+    ! BENZENE
+	TACCb = QALV*(CIb-CEXPb)   					! Accum. rate in the organism (mg/hr)
+	ACCb = integ(TACCb, 0.0)					! Amount accumulated in organism (mg)
+	TISSb = ARb+AGb+AMPb+AFb+METb  				! Sum of amounts present in tissues and metabolized
+	BILANb = ACCb-TISSb        					! CHECK balance must equal zero
+    
+    termt(t >= TSTOP, 'Stopped on time limit.')
+
+end
+
+end

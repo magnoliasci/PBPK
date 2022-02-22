@@ -1,0 +1,260 @@
+---
+title: "BTEX Mixture PBPK"
+author: "Magnolia Sciences"
+date: "2/19/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(RMagnolia)
+
+```
+
+```{r}
+
+# Load and build the Magnolia model
+mdl <- magnoliaBuild(filename = "BTEX_ruiz2020.csl")
+
+#
+# Use the prepare() function to tell Magnolia what outputs
+# need to be logged during the simulation run for plotting
+#
+
+# Time
+mdl$prepare("t")
+
+# Exhaled air concentration of each chhemical
+mdl$prepare("cppmb")
+mdl$prepare("cppmt")
+mdl$prepare("cppme")
+mdl$prepare("cppmx")
+
+# Venous concentration
+mdl$prepare("cvb")
+mdl$prepare("cvt")
+mdl$prepare("cve")
+mdl$prepare("cvx")
+
+# A little helper function to run a set of simulation
+# Settings for each sim run are contained in the 
+# passed data frame
+runsim <- function(mdl, concb, conct, conce, concx, inhib, exptime, simtime)
+{
+    mdl$tstop <- simtime
+    mdl$duree <- exptime
+    mdl$inter <- inhib
+    mdl$concb <- concb
+    mdl$conct <- conct
+    mdl$conce <- conce
+    mdl$concx <- concx
+    
+    mdl$run()
+        
+    sim <- magnoliaResults(mdl)
+}
+
+```
+
+
+```{r}
+
+# Toluene in exhaled air (Tardif 1997 fig 8)
+
+# Observed data
+obs <- readr::read_csv("data/tardif1997_fig8_tol.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 17, 0, 0, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppmt, scenario = "Single")
+sims2 <- mdl %>% runsim(0, 17, 33, 33, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppmt, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cex, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.1, 50)) +
+    labs(title="Toluene Concentration in Exhaled Air", 
+         subtitle = "(Tardif 1997 Figure 8)",
+         x = "Time (h)", y = "Alv. Concentration (ppm)") +
+    theme_bw()
+
+```
+
+
+```{r}
+
+# m-Xylene in exhaled air (Tardif 1997 fig 8)
+
+# Observed data
+obs <- readr::read_csv("data/tardif1997_fig8_xyl.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 0, 0, 33, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppmx, scenario = "Single")
+sims2 <- mdl %>% runsim(0, 17, 33, 33, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppmx, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cex, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.1, 50)) +
+    labs(title="m-Xylene Concentration in Exhaled Air", 
+         subtitle = "(Tardif 1997 Figure 8)",
+         x = "Time (h)", y = "Alv. Concentration (ppm)") +
+    theme_bw()
+
+```
+
+```{r}
+
+# Ethylbenzene in exhaled air (Tardif 1997 fig 8)
+
+# Observed data
+obs <- readr::read_csv("data/tardif1997_fig8_ebz.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 0, 33, 0, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppme, scenario = "Single")
+sims2 <- mdl %>% runsim(0, 17, 33, 33, 1, 7, 12) %>%
+        dplyr::mutate(cex = cppme, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cex, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.1, 50)) +
+    labs(title="Ethylbenzene Concentration in Exhaled Air", 
+         subtitle = "(Tardif 1997 Figure 8)",
+         x = "Time (h)", y = "Alv. Concentration (ppm)") +
+    theme_bw()
+
+```
+
+```{r}
+
+# Benzene in venous blood (Haddad 1999 fig 4)
+
+# Observed data
+obs <- readr::read_csv("data/haddad1999_fig4_ben.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(50, 0, 0, 0, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvb, scenario = "Single")
+sims2 <- mdl %>% runsim(50, 50, 50, 50, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvb, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cv, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.01, 10)) +
+    labs(title="Benzene Concentration in Venous Blood", 
+         subtitle = "(Haddad 1999 Figure 4)",
+         x = "Time (h)", y = "Ven. Blood Concentration (mg/L)") +
+    theme_bw()
+
+```
+
+
+```{r}
+
+# Toluene in venous blood (Haddad 1999 fig 4)
+
+# Observed data
+obs <- readr::read_csv("data/haddad1999_fig4_tol.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 50, 0, 0, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvt, scenario = "Single")
+sims2 <- mdl %>% runsim(50, 50, 50, 50, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvt, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cv, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.01, 10)) +
+    labs(title="Toluene Concentration in Venous Blood", 
+         subtitle = "(Haddad 1999 Figure 4)",
+         x = "Time (h)", y = "Ven. Blood Concentration (mg/L)") +
+    theme_bw()
+
+```
+
+```{r}
+
+# Ethylbenzene in venous blood (Haddad 1999 fig 4)
+
+# Observed data
+obs <- readr::read_csv("data/haddad1999_fig4_ebz.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 0, 50, 0, 1, 4, 6) %>%
+        dplyr::mutate(cv = cve, scenario = "Single")
+sims2 <- mdl %>% runsim(50, 50, 50, 50, 1, 4, 6) %>%
+        dplyr::mutate(cv = cve, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cv, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.01, 10)) +
+    labs(title="Ethylbenzene Concentration in Venous Blood", 
+         subtitle = "(Haddad 1999 Figure 4)",
+         x = "Time (h)", y = "Ven. Blood Concentration (mg/L)") +
+    theme_bw()
+
+```
+
+```{r}
+
+# m-Xylene in venous blood (Haddad 1999 fig 4)
+
+# Observed data
+obs <- readr::read_csv("data/haddad1999_fig4_xyl.csv") %>%
+       tidyr::pivot_longer(Single:Mixture, "scenario")
+
+sims1 <- mdl %>% runsim(0, 0, 0, 50, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvx, scenario = "Single")
+sims2 <- mdl %>% runsim(50, 50, 50, 50, 1, 4, 6) %>%
+        dplyr::mutate(cv = cvx, scenario = "Mixture")
+
+data <- dplyr::bind_rows(sims1, sims2)
+
+ggplot(data = data) +
+    geom_line(aes(x = t, y = cv, color = scenario), size = 0.75) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    geom_point(data = obs, aes(x = TIME, y = value, shape = scenario, color = scenario), size = 2) +
+    scale_y_log10(limits = c(0.01, 10)) +
+    labs(title="m-Xylene Concentration in Venous Blood", 
+         subtitle = "(Haddad 1999 Figure 4)",
+         x = "Time (h)", y = "Ven. Blood Concentration (mg/L)") +
+    theme_bw()
+
+```
+
+
+
