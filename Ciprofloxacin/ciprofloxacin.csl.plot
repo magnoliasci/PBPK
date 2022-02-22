@@ -1,0 +1,1 @@
+{"ymin":0.5,"xmin":0.0,"ylabel":"Concentration (mg\/L)","variables":[{"name":"ckidu"},{"name":"cvenu"},{"name":"clunu"},{"name":"chep"}],"xautorange":true,"logx":false,"logy":false,"yautorange":true,"title":"Ciprofloxacin IV 400 mg bid","ymax":50.0,"xmax":100000.0,"xlabel":"Time (h)","sliders":[],"parameters":[]}

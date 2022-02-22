@@ -1,0 +1,579 @@
+!**********************************************************************************************
+! Generic Whole-body PBPK model based on the following publications:
+!    Peters, SA. Physiologically-based pharmacokinetic (PBPK) modeling and
+!        simulations : principles, methods, and applications in the pharmaceutical industry.
+!        John Wiley & Sons, Inc. Hoboken, New Jersey. 2012.
+!    Peters, SA. Evaluation of a Generic Physiologically Based Pharmacokinetic
+!        Model for Lineshape Analysis. Clin Pharmacokinet 2008; 47 (4): 261-275.
+!**********************************************************************************************
+model Peters2008
+
+!************************************************
+! Functions for calculating Kpu values
+! based on Poulin and Theil formulas
+!************************************************
+
+! Adipose tissue
+function kpu = CalcKpuAdipose(fnlt, fplt, fwt)
+  dimension kpu, fnlt, fplt, fwt
+  kpu =  (Dvow*(fnlt + 0.3*fplt) + (fwt + 0.7*fplt)) ...
+        /(Dvow*(0.0014 + 0.3*0.0008) + (0.939 + 0.7*0.0008))
+end
+
+! Non-adipose tissues
+function kpu = CalcKpuNonAdipose(fnlt, fplt, fwt)
+  dimension kpu, fnlt, fplt, fwt
+  fut = 1.0/(1.0 + 0.5*((1.0 - fup)/fup))
+  kpu =  (Pow*(fnlt + 0.3*fplt) + (fwt + 0.7*fplt)) ...
+        /(Pow*(0.0014 + 0.3*0.0008) + (0.939 + 0.7*0.0008))/fut
+end
+
+!************************************************
+! Function for calculating pH-adjusted solubility
+! based on Henderson-Hasselbalch formula
+!************************************************
+function soladj = CalcAdjustedSolubility(solref, phref, phadj)
+  dimension soladj, solref, phref, phadj
+  if (ION == 0) ! Neutral
+    soladj = solref
+  else if (ION == 1) ! Acid
+    logsol = log10(solref) + log10(1 + 10^(phadj - pKa))
+    soladj = 10^logsol
+  else ! Base
+    logsol = log10(solref) + log10(1 + 10^(pKa - phadj))
+    soladj = 10^logsol
+  end
+end
+
+initial
+
+  !************************************************
+  ! Simulation parameters
+  !************************************************
+
+  ! Stop time (min)
+  constant tstop = 900.0 ! 15 hrs
+
+  ! Communnication interval (min)
+  cinterval cint = 1.0
+
+  !************************************************
+  ! Dosing parameters
+  !************************************************
+
+  ! Oral dose, mg/kg
+  constant ODOSE_SOLID      = 10.0
+  constant ODOSE_DISSOLVED  = 0.0
+
+  ! Bolus IV dose, mg/kg
+  constant IVDOSE = 0.0
+
+  !************************************************
+  ! Chemical-specific parameters
+  !************************************************
+
+  ! Note: default to Atenolol values (Table II)
+
+  ! Molecular weight (Da)
+  constant MW = 266.0
+
+  ! Polar surface area, used to compute Peff (Angstroms^2)
+  constant PSA = 92.5
+
+  ! # Hydrogen bond donors, used to compute Peff (unitless)
+  constant HBD = 4
+
+  ! Lipophilicity
+  constant LogP = -0.11
+  Pow           = 10^LogP
+
+  ! Ionization class: 0 = Neutral, 1 = Acid, 2 = Base
+  constant ION = 2
+
+  ! Acid/base dissociation constant
+  constant pKa = 9.6
+
+  ! Approximate LogD from LogP and pKa
+  ! Note: assume physiological pH of 7.4
+  if (ION == 0) ! Neutral
+    LogD = LogP
+  else if (ION == 1) ! Acid
+    LogD = LogP - log10(1 + 10^(7.4 - pKa))
+  else ! Base
+    LogD = LogP - log10(1 + 10^(pKa - 7.4))
+  end
+
+  Dvow = 10^LogD
+
+  ! Aqueous solubility @ pH = 5.5 (mmol/L)
+  constant Saq = 51.0
+  constant SaqRefph = 5.5
+
+  ! Passive permeability (10^-6/cm)
+  constant Perm = 10.0
+
+  ! Unbound fraction in plasma
+  constant fup = 0.96
+
+  ! Blood:plasma concentration ratio
+  constant Rbp = 1.0
+
+  ! Diffusion coefficient (cm^2/min)
+  constant DC = 1e-4
+
+  ! Drug particle radius (um)
+  constant PR = 5.0
+
+  ! Drug particle density (g/mL)
+  constant PD = 1.0
+
+  ! Diffusion layer thickness (um)
+  constant DLT = 30
+
+  ! Partition coefficients, placeholders for now
+  ! These are computed using functions defined above
+  ! Arguments: (frac neutral lipids, frac phospholipids, frac water)
+  KpuAdipose   = CalcKpuAdipose(0.8529, 0.0021, 0.12)
+  KpuBrain     = CalcKpuNonAdipose(0.0393, 0.0532, 0.75)
+  KpuGut       = CalcKpuNonAdipose(0.032, 0.015, 0.7)
+  KpuSpleen    = CalcKpuNonAdipose(0.0077, 0.0136, 0.77)
+  KpuPancreas  = CalcKpuNonAdipose(0.0723, 0.0188, 0.66)
+  KpuStomach   = CalcKpuNonAdipose(0.0338, 0.0182, 0.794)
+  KpuLiver     = CalcKpuNonAdipose(0.035, 0.025, 0.7)
+  KpuKidneys   = CalcKpuNonAdipose(0.0334, 0.0269, 0.752)
+  KpuHeart     = CalcKpuNonAdipose(0.0117, 0.0141, 0.77)
+  KpuLungs     = CalcKpuNonAdipose(0.0199, 0.017, 0.78)
+  KpuMuscle    = CalcKpuNonAdipose(0.0087, 0.0103, 0.743)
+  KpuSkin      = CalcKpuNonAdipose(0.0205, 0.0155, 0.7)
+  KpuBone      = CalcKpuNonAdipose(0.0222, 0.0005, 0.35)
+  KpuTestes    = CalcKpuNonAdipose(0.0, 0.0, 0.859)
+
+  ! Renal elimination rate
+  ke_ren       = 0.0
+
+  ! Intrinsic hepatic clearance
+  constant CLint           = 1.0
+
+  ! Fraction of metabolite converted back to parent in colon
+  constant CP              = 0.0
+
+  !************************************************
+  ! Physiological parameters
+  ! Note: default physiology is RAT (Table I)
+  !************************************************
+
+  ! Body weight (g)
+  constant BW              = 250.0
+
+  ! BW-normalized blood flow rates (mL/min/kg)
+  constant QCBrain         = 5.32
+  constant QCHepaticArtery = 10.8   ! Calculated from other flow fractions
+  constant QCGut           = 52.0
+  constant QCSpleen        = 5.0
+  constant QCPancreas      = 4.0
+  constant QCStomach       = 8.2
+  constant QCLiver         = 80.0
+  constant QCKidneys       = 36.92
+  constant QCHeart         = 15.68
+  constant QCMuscle        = 30.0
+  constant QCAdipose       = 1.6
+  constant QCSkin          = 20.0
+  constant QCBone          = 10.12
+  constant QCTestes        = 1.8
+
+  constant QCLungs         = 201.44 ! Adjusted from lit value of 203.2 to preserve mass balance
+
+  ! Scaled flow rates (mL/min)
+  QBrain                   = BW*QCBrain/1000.0
+  QHepaticArtery           = BW*QCHepaticArtery/1000.0
+  QGut                     = BW*QCGut/1000.0
+  QSpleen                  = BW*QCSpleen/1000.0
+  QPancreas                = BW*QCPancreas/1000.0
+  QStomach                 = BW*QCStomach/1000.0
+  QLiver                   = BW*QCLiver/1000.0
+  QKidneys                 = BW*QCKidneys/1000.0
+  QHeart                   = BW*QCHeart/1000.0
+  QMuscle                  = BW*QCMuscle/1000.0
+  QAdipose                 = BW*QCAdipose/1000.0
+  QSkin                    = BW*QCSkin/1000.0
+  QBone                    = BW*QCBone/1000.0
+  QTestes                  = BW*QCTestes/1000.0
+  QLungs                   = BW*QCLungs/1000.0
+
+  QCheck1 = QBrain + QLiver + QKidneys + QHeart + QMuscle + QAdipose + QSkin + QBone + QTestes - QLungs
+  QCheck2 = QGut + QStomach + QSpleen + QPancreas + QHepaticArtery - QLiver
+
+  ! BW-normalized organ volumes (mL/kg)
+  constant VCBrain         = 6.8
+  constant VCGut           = 40.0
+  constant VCSpleen        = 2.4
+  constant VCPancreas      = 5.2
+  constant VCStomach       = 4.4
+  constant VCLiver         = 41.2
+  constant VCKidneys       = 9.2
+  constant VCHeart         = 3.2
+  constant VCLungs         = 4.0
+  constant VCMuscle        = 487.6
+  constant VCAdipose       = 40.0
+  constant VCSkin          = 160.0
+  constant VCBone          = 63.2
+  constant VCTestes        = 10.0
+  constant VCArterialBlood = 22.4
+  constant VCVenousBlood   = 45.2
+
+  ! Scaled organ volumes (mL)
+  VBrain                   = BW*VCBrain/1000.0
+  VGut                     = BW*VCGut/1000.0
+  VSpleen                  = BW*VCSpleen/1000.0
+  VPancreas                = BW*VCPancreas/1000.0
+  VStomach                 = BW*VCStomach/1000.0
+  VLiver                   = BW*VCLiver/1000.0
+  VKidneys                 = BW*VCKidneys/1000.0
+  VHeart                   = BW*VCHeart/1000.0
+  VLungs                   = BW*VCLungs/1000.0
+  VMuscle                  = BW*VCMuscle/1000.0
+  VAdipose                 = BW*VCAdipose/1000.0
+  VSkin                    = BW*VCSkin/1000.0
+  VBone                    = BW*VCBone/1000.0
+  VTestes                  = BW*VCTestes/1000.0
+  VArterialBlood           = BW*VCArterialBlood/1000.0
+  VVenousBlood             = BW*VCVenousBlood/1000.0
+
+  ! Transit rates for individual SI segments (1/min)
+  constant kt_ST           = 0.37
+  constant kt_GU1          = 0.0410
+  constant kt_GU2          = 0.0410
+  constant kt_GU3          = 0.0410
+  constant kt_GU4          = 0.0410
+  constant kt_GU5          = 0.0410
+  constant kt_GU6          = 0.0410
+  constant kt_GU7          = 0.0410
+  constant kt_CO           = 0.0026
+
+  ! Gastric emptying rate (1/min)
+  GER                      = kt_ST
+
+  ! Volume of GI segments (mL)
+  constant V_ST            = 3.0
+  constant V_GU1           = 0.6
+  constant V_GU2           = 0.66
+  constant V_GU3           = 0.66
+  constant V_GU4           = 0.41
+  constant V_GU5           = 0.41
+  constant V_GU6           = 0.41
+  constant V_GU7           = 0.41
+  constant V_CO            = 42.0
+
+  ! pH of GI compartments
+  constant pH_ST           = 3.0
+  constant pH_GU1          = 7.1
+  constant pH_GU2          = 7.3
+  constant pH_GU3          = 7.5
+  constant pH_GU4          = 7.7
+  constant pH_GU5          = 7.9
+  constant pH_GU6          = 8.0
+  constant pH_GU7          = 7.4
+  constant ph_CO           = 7.6
+
+  ! Radius of SI (cm)
+  constant R_SI            = 0.18
+
+  ! Enterohepatic reciculation flag
+  constant EHR             = 0.0
+
+  ! Biliary elimination constant
+  constant kbil            = 0.0
+
+  ! Compute initial compartment concentrations based on dosing parameters
+
+  ! IV dosing
+  CVenousBlood0 = IVDOSE*BW/1000.0/VVenousBlood
+
+  ! Oral dosing
+  Aund_ST0      = ODOSE_SOLID*BW/1000.0
+  Adis_ST0      = ODOSE_DISSOLVED*BW/1000.0
+
+  ! Intestinal model initialization
+
+  ! Regional intestinal loss (e.g., metabolism) rates
+  ! These are presently unused, but included here for future use
+  kil_st  = 0.0
+  kil_gu1 = 0.0
+  kil_gu2 = 0.0
+  kil_gu3 = 0.0
+  kil_gu4 = 0.0
+  kil_gu5 = 0.0
+  kil_gu6 = 0.0
+  kil_gu7 = 0.0
+  kil_co  = 0.0
+
+  ! Absorption rates
+  ! Winiwarter model for Peff (10^-4 cm/sec)
+  LogPeff   = -3.067 + 0.162*LogP - 0.01*PSA - 0.235*HBD
+  ! Convert to cm/min
+  ! Confirm this conversion... the 10^-4 factor seems to cause a problem if it's included
+  Peff      = 60.0*10^LogPeff
+
+  ! Regional absorption rates
+  ka_st  = Peff*2/R_SI
+  ka_gu1 = Peff*2/R_SI
+  ka_gu2 = Peff*2/R_SI
+  ka_gu3 = Peff*2/R_SI
+  ka_gu4 = Peff*2/R_SI
+  ka_gu5 = Peff*2/R_SI
+  ka_gu6 = Peff*2/R_SI
+  ka_gu7 = Peff*2/R_SI
+  ka_co  = Peff*2/R_SI
+
+  ! Regional solubilities
+  S_st  = CalcAdjustedSolubility(Saq, SaqRefph, pH_ST)
+  S_gu1 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU1)
+  S_gu2 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU2)
+  S_gu3 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU3)
+  S_gu4 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU4)
+  S_gu5 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU5)
+  S_gu6 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU6)
+  S_gu7 = CalcAdjustedSolubility(Saq, SaqRefph, pH_GU7)
+  S_co  = CalcAdjustedSolubility(Saq, SaqRefph, pH_CO)
+
+end ! initial
+
+dynamic
+
+derivative
+
+  !************************************************
+  ! PBPK organ mass balance equations
+  !************************************************
+
+  ! These are presently unused, but included here for future use
+  VIR = 0.0 ! Venous infusion rate
+  AIR = 0.0 ! Arterial infusion rate
+
+  ! Lungs (eq 12)
+  dCLungs = QLungs*(CVenousBlood - CLungs*Rbp/(fup*KpuLungs))/VLungs
+  CLungs  = integ(dCLungs, 0.0)
+
+  ! Arterial blood (eq 13)
+  dCArterialBlood = (QLungs*(CLungs*Rbp/(fup*KpuLungs) - CArterialBlood) + AIR)/VArterialBlood
+  CArterialBlood  = integ(dCArterialBlood, 0.0)
+
+  ! Venous blood (eq 14)`
+  dCVenousBlood = (  QBrain*CBrain*Rbp/(fup*KpuBrain) ...
+                   + QLiver*CLiver*Rbp/(fup*KpuLiver) ...
+                   + QKidneys*CKidneys*Rbp/(fup*KpuKidneys) ...
+                   + QHeart*CHeart*Rbp/(fup*KpuHeart) ...
+                   + QMuscle*CMuscle*Rbp/(fup*KpuMuscle) ...
+                   + QAdipose*CAdipose*Rbp/(fup*KpuAdipose) ...
+                   + QSkin*CSkin*Rbp/(fup*KpuSkin) ...
+                   + QBone*CBone*Rbp/(fup*KpuBone) ...
+                   + QTestes*CTestes*Rbp/(fup*KpuTestes) ...
+                   - QLungs*CVenousBlood + VIR )/VVenousBlood
+  CVenousBlood  = integ(dCVenousBlood, CVenousBlood0)
+
+  ! Brain (eq 15)
+  dCBrain    = QBrain*(CArterialBlood - CBrain*Rbp/(fup*KpuBrain))/VBrain
+  CBrain     = integ(dCBrain, 0.0)
+
+  ! Heart (eq 15)
+  dCHeart    = QBrain*(CArterialBlood - CHeart*Rbp/(fup*KpuHeart))/VHeart
+  CHeart     = integ(dCHeart, 0.0)
+
+  ! Muscle (eq 15)
+  dCMuscle   = QMuscle*(CArterialBlood - CMuscle*Rbp/(fup*KpuMuscle))/VMuscle
+  CMuscle    = integ(dCMuscle, 0.0)
+
+  ! Adipose (eq 15)
+  dCAdipose  = QAdipose*(CArterialBlood - CAdipose*Rbp/(fup*KpuAdipose))/VAdipose
+  CAdipose   = integ(dCAdipose, 0.0)
+
+  ! Skin (eq 15)
+  dCSkin     = QSkin*(CArterialBlood - CSkin*Rbp/(fup*KpuSkin))/VSkin
+  CSkin      = integ(dCSkin, 0.0)
+
+  ! Bone (eq 15)
+  dCBone     = QBone*(CArterialBlood - CBone*Rbp/(fup*KpuBone))/VBone
+  CBone      = integ(dCBone, 0.0)
+
+  ! Testes (eq 15)
+  dCTestes   = QTestes*(CArterialBlood - CTestes*Rbp/(fup*KpuTestes))/VTestes
+  CTestes    = integ(dCTestes, 0.0)
+
+  ! Pancreas (eq 15)
+  dCPancreas = QPancreas*(CArterialBlood - CPancreas*Rbp/(fup*KpuPancreas))/VPancreas
+  CPancreas  = integ(dCPancreas, 0.0)
+
+  ! Spleen (eq 15)
+  dCSpleen   = QSpleen*(CArterialBlood - CSpleen*Rbp/(fup*KpuSpleen))/VSpleen
+  CSpleen    = integ(dCSpleen, 0.0)
+
+  ! Stomach (eq 16)
+  dCStomach  = (QStomach*(CArterialBlood - CStomach*Rbp/(fup*KpuStomach)) + GAR)/VStomach
+  CStomach   = integ(dCStomach, 0.0)
+
+  ! Gut (eq 17)
+  dCGut      = (QGut*(CArterialBlood - CGut*Rbp/(fup*KpuGut)) + IAR)/VGut
+  CGut       = integ(dCGut, 0.0)
+
+  ! Kidneys (eq 18)
+  dCKidneys  = QKidneys*(CArterialBlood - CKidneys*Rbp/(fup*KpuKidneys))/VKidneys - CKidneys*ke_ren/KpuKidneys
+  CKidneys   = integ(dCKidneys, 0.0)
+
+  ! Liver (eq 19)
+  dCLiver    = (  QHepaticArtery*CArterialBlood ...
+                + QGut*CGut*Rbp/(fup*KpuGut) ...
+                + QPancreas*CPancreas*Rbp/(fup*KpuPancreas) ...
+                + QSpleen*CSpleen*Rbp/(fup*KpuSpleen) ...
+                + QStomach*CStomach*Rbp/(fup*KpuStomach) ...
+                - QLiver*CLiver*Rbp/(fup*KpuLiver) ...
+                - CLiver*CLint/KpuLiver )/VLiver
+  CLiver     = integ(dCLiver, 0.0)
+
+  !************************************************
+  ! GI submodel
+  !************************************************
+
+  ! Stomach (eq 7)
+  dAund_ST  = -GER*Aund_ST - (3*DC/(PR*PD*DLT))*Aund_ST*(S_ST - Adis_ST/V_ST)
+  Aund_ST   = integ(dAund_ST, Aund_ST0)
+
+  dAdis_ST  = -GER*Adis_ST + (3*DC/(PR*PD*DLT))*Aund_ST*(S_ST - Adis_ST/V_ST) ...
+              - kil_ST*Adis_ST - ka_ST*Adis_ST
+  Adis_ST   = integ(dAdis_ST, Adis_ST0)
+
+  dAdeg_ST  = -GER*Adeg_ST + kil_ST*Adis_ST
+  Adeg_ST   = integ(dAdeg_ST, 0.0)
+
+  dAabs_ST  = ka_ST*Adis_ST
+  Aabs_ST   = integ(dAabs_ST, 0.0)
+
+  ! Gastric absorption rate
+  GAR       = dAabs_ST
+
+  ! GU1 (Duodenum) (eq 8)
+  dAund_GU1 = GER*Aund_ST - kt_GU1*Aund_GU1 - (3*DC/(PR*PD*DLT))*Aund_GU1*(S_GU1 - Adis_GU1/V_GU1)
+  Aund_GU1  = integ(dAund_GU1, 0.0)
+
+  dAdis_GU1 = GER*Adis_ST - kt_GU1*Adis_GU1 + (3*DC/(PR*PD*DLT))*Aund_GU1*(S_GU1 - Adis_GU1/V_GU1) ...
+              - kil_GU1*Adis_GU1 - ka_GU1*Adis_GU1 + EHR*kbil*CLiver*VLiver/(fup*KpuLiver)
+  Adis_GU1  = integ(dAdis_GU1, 0.0)
+
+  dAdeg_GU1 = GER*Adeg_ST - kt_GU1*Adeg_GU1 + kil_GU1*Adis_GU1
+  Adeg_GU1  = integ(dAdeg_GU1, 0.0)
+
+  dAabs_GU1 = ka_GU1*Adis_GU1
+  Aabs_GU1  = integ(dAabs_GU1, 0.0)
+
+  ! GU2 (Jejunum 1) (eq 9)
+  dAund_GU2 = kt_GU1*Aund_GU1 - kt_GU2*Aund_GU2 - (3*DC/(PR*PD*DLT))*Aund_GU2*(S_GU2 - Adis_GU2/V_GU2)
+  Aund_GU2  = integ(dAund_GU2, 0)
+
+  dAdis_GU2 = kt_GU1*Adis_GU1 - kt_GU2*Adis_GU2 + (3*DC/(PR*PD*DLT))*Aund_GU2*(S_GU2 - Adis_GU2/V_GU2) ...
+              - kil_GU2*Adis_GU2 - ka_GU2*Adis_GU2
+  Adis_GU2  = integ(dAdis_GU2, 0.0)
+
+  dAdeg_GU2 = kt_GU1*Adeg_GU1 - kt_GU2*Adeg_GU2 + kil_GU2*Adis_GU2
+  Adeg_GU2  = integ(dAdeg_GU2, 0.0)
+
+  dAabs_GU2 = ka_GU2*Adis_GU2
+  Aabs_GU2  = integ(dAabs_GU2, 0.0)
+
+  ! GU3 (Jejunum 2) (eq 9)
+  dAund_GU3 = kt_GU2*Aund_GU2 - kt_GU3*Aund_GU3 - (3*DC/(PR*PD*DLT))*Aund_GU3*(S_GU3 - Adis_GU3/V_GU3)
+  Aund_GU3  = integ(dAund_GU3, 0)
+
+  dAdis_GU3 = kt_GU2*Adis_GU2 - kt_GU3*Adis_GU3 + (3*DC/(PR*PD*DLT))*Aund_GU3*(S_GU3 - Adis_GU3/V_GU3) ...
+              - kil_GU3*Adis_GU3 - ka_GU3*Adis_GU3
+  Adis_GU3  = integ(dAdis_GU3, 0.0)
+
+  dAdeg_GU3 = kt_GU2*Adeg_GU2 - kt_GU3*Adeg_GU3 + kil_GU3*Adis_GU3
+  Adeg_GU3  = integ(dAdeg_GU3, 0.0)
+
+  dAabs_GU3 = ka_GU3*Adis_GU3
+  Aabs_GU3  = integ(dAabs_GU3, 0.0)
+
+  ! GU4 (Illeum 1) (eq 9)
+  dAund_GU4 = kt_GU3*Aund_GU3 - kt_GU4*Aund_GU4 - (3*DC/(PR*PD*DLT))*Aund_GU4*(S_GU4 - Adis_GU4/V_GU4)
+  Aund_GU4  = integ(dAund_GU4, 0)
+
+  dAdis_GU4 = kt_GU3*Adis_GU3 - kt_GU4*Adis_GU4 + (3*DC/(PR*PD*DLT))*Aund_GU4*(S_GU4 - Adis_GU4/V_GU4) ...
+              - kil_GU4*Adis_GU4 - ka_GU4*Adis_GU4
+  Adis_GU4  = integ(dAdis_GU4, 0.0)
+
+  dAdeg_GU4 = kt_GU3*Adeg_GU3 - kt_GU4*Adeg_GU4 + kil_GU4*Adis_GU4
+  Adeg_GU4  = integ(dAdeg_GU4, 0.0)
+
+  dAabs_GU4 = ka_GU4*Adis_GU4
+  Aabs_GU4  = integ(dAabs_GU4, 0.0)
+
+  ! GU5 (Illeum 2) (eq 9)
+  dAund_GU5 = kt_GU4*Aund_GU4 - kt_GU5*Aund_GU5 - (3*DC/(PR*PD*DLT))*Aund_GU5*(S_GU5 - Adis_GU5/V_GU5)
+  Aund_GU5  = integ(dAund_GU5, 0)
+
+  dAdis_GU5 = kt_GU4*Adis_GU4 - kt_GU5*Adis_GU5 + (3*DC/(PR*PD*DLT))*Aund_GU5*(S_GU5 - Adis_GU5/V_GU5) ...
+              - kil_GU4*Adis_GU4 - ka_GU5*Adis_GU5
+  Adis_GU5  = integ(dAdis_GU5, 0.0)
+
+  dAdeg_GU5 = kt_GU4*Adeg_GU4 - kt_GU5*Adeg_GU5 + kil_GU5*Adis_GU5
+  Adeg_GU5  = integ(dAdeg_GU5, 0.0)
+
+  dAabs_GU5 = ka_GU5*Adis_GU5
+  Aabs_GU5  = integ(dAabs_GU5, 0.0)
+
+  ! GU6 (Illeum 3) (eq 9)
+  dAund_GU6 = kt_GU5*Aund_GU5 - kt_GU6*Aund_GU6 - (3*DC/(PR*PD*DLT))*Aund_GU6*(S_GU6 - Adis_GU6/V_GU6)
+  Aund_GU6  = integ(dAund_GU6, 0)
+
+  dAdis_GU6 = kt_GU5*Adis_GU5 - kt_GU6*Adis_GU6 + (3*DC/(PR*PD*DLT))*Aund_GU6*(S_GU6 - Adis_GU6/V_GU6) ...
+              - kil_GU5*Adis_GU5 - ka_GU6*Adis_GU6
+  Adis_GU6  = integ(dAdis_GU6, 0.0)
+
+  dAdeg_GU6 = kt_GU5*Adeg_GU5 - kt_GU6*Adeg_GU6 + kil_GU6*Adis_GU6
+  Adeg_GU6  = integ(dAdeg_GU6, 0.0)
+
+  dAabs_GU6 = ka_GU6*Adis_GU6
+  Aabs_GU6  = integ(dAabs_GU6, 0.0)
+
+  ! GU7 (Illeum 4) (eq 9)
+  dAund_GU7 = kt_GU6*Aund_GU6 - kt_GU7*Aund_GU7 - (3*DC/(PR*PD*DLT))*Aund_GU7*(S_GU7 - Adis_GU7/V_GU7)
+  Aund_GU7  = integ(dAund_GU7, 0)
+
+  dAdis_GU7 = kt_GU6*Adis_GU6 - kt_GU7*Adis_GU7 + (3*DC/(PR*PD*DLT))*Aund_GU7*(S_GU7 - Adis_GU7/V_GU7) ...
+              - kil_GU6*Adis_GU6 - ka_GU7*Adis_GU7
+  Adis_GU7  = integ(dAdis_GU7, 0.0)
+
+  dAdeg_GU7 = kt_GU6*Adeg_GU6 - kt_GU7*Adeg_GU7 + kil_GU7*Adis_GU7
+  Adeg_GU7  = integ(dAdeg_GU7, 0.0)
+
+  dAabs_GU7 = ka_GU7*Adis_GU7
+  Aabs_GU7  = integ(dAabs_GU7, 0.0)
+
+  ! Colon  (eq 10)
+  dAund_CO  = kt_GU7*Aund_GU7 - kt_CO*Aund_CO - (3*DC/(PR*PD*DLT))*Aund_CO*(S_CO - Adis_CO/V_CO)
+  Aund_CO   = integ(dAund_CO, 0.0)
+
+  dAdis_CO  = kt_GU7*Adis_GU7 - kt_CO*Adis_CO + (3*DC/(PR*PD*DLT))*Aund_CO*(S_CO - Adis_CO/V_CO) ...
+              - kil_CO*Adis_CO - ka_CO*Adis_CO + CP*CLiver*VLiver*kbil/(fup*KpuLiver)
+  Adis_CO   = integ(dAdis_CO, 0.0)
+
+  dAdeg_CO  = kt_GU7*Adeg_GU7 - kt_CO*Adeg_CO + kil_CO*Adis_CO
+  Adeg_CO   = integ(dAdeg_CO, 0.0)
+
+  dAabs_CO  = ka_CO*Adis_CO
+  Aabs_CO   = integ(dAabs_CO, 0.0)
+
+  ! Total intestinal absorption rate
+  IAR = dAabs_GU1 + dAabs_GU2 + dAabs_GU3 + dAabs_GU4 ...
+        + dAabs_GU5 + dAabs_GU6 + dAabs_GU7 + dAabs_CO
+
+  termt(t >= tstop, 'Stopped on time limit')
+
+  ! Convert from mg/mL to mg/L
+  CVenousBlood_mgpl = CVenousBlood*1000.0
+
+end ! derivative
+
+end ! dynamic
+
+
+end ! program

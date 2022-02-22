@@ -1,0 +1,226 @@
+! Ciprofloxacin PBPK model based on:
+! Sadiq et al, 2017. A whole-body physiologically based pharmacokinetic (WB-PBPK)
+! model of ciprofloxacin: a step towards predicting bacterial killing
+! at sites of infection. J Pharmacokinet Pharmacodyn (44) 69-79
+!
+! Ratios of interstitial to plasma albumin concentration are taken from: 
+! Bjorkman, S., Wada, D. R., Berling, B., & Benoni, G. (2001). 
+! Prediction of the disposition of midazolam in surgical patients by a physiologically 
+! based pharmacokinetic model. Journal of Pharmaceutical Sciences 90(9) 1226-1241
+!
+model ciprofloxacin
+
+initial
+
+    ! Dosing parameters
+    constant IVDOSE = 400.0   ! Amount dosed at each infusion
+    constant IVDUR  = 1.0     ! Infusion duration (h)
+    IVRATE = 0.0
+    
+    constant WT = 70.0  ! kg
+    constant integer SEX = 0  ! 0 = male, 1 = female
+    
+    ! ------------------------- Tissue volumes (L) --------------------------
+    IF (SEX == 0)
+        VART = 0.017083*(WT)    ! Arterial volume (L)
+        VVEN = 0.051248*(WT)    ! Venous volume (L)
+        VLUN = 0.00643836*(WT)  ! Lungs weight (Kg) ICRP
+        VBRA = 0.0191781*(WT)   ! Brain volume (L)
+        VHRT = 0.004167*(WT)    ! Heart volume (L) ICRP
+        VSKN = 0.0383*(WT/1.18) ! Skin volume (L)
+        VMUS = 0.2916*(WT)      ! Muscle volume (L) ICRP
+        VADI = 0.3*(WT/0.916)   ! Adipose volume (L) ICRP
+        VSPL = 0.00247*(WT)     ! Spleen volume (L) ICRP
+        VGIO = 0.01644*(WT)     ! GIO volume (L) stomach+SI colon ICRP
+        VHEP = 0.020724*(WT)    ! Hepatic volume (L) ICRP
+        VKID = 0.0042466*(WT)   ! Kidney volume (L) ICRP
+        VRES = 0.23220194*(WT)  ! Rest of body volume bones ICRP
+    ELSE IF (SEX == 1)
+        VART = 0.01918*(WT) ! Arterial volume (L)
+        VVEN = 0.05753*(WT) ! Venous volume (L)
+        VLUN = 0.00643836*(WT) ! Lungs weight (Kg) ICRP
+        VBRA = 0.01918*(WT) ! Brain volume (L)
+        VHRT = 0.004521*(WT) ! Heart volume (L) ICRP
+        VSKN = 0.045205*(WT/1.18) ! Skin volume (L)
+        VMUS = 0.3973*(WT) ! Muscle volume (L) ICRP
+        VADI = 0.171233*(WT/0.916) ! Adipose volume (L) ICRP
+        VSPL = 0.00247*(WT) ! Spleen volume (L) ICRP
+        VGIO = 0.01644*(WT) ! GIO volume (L) stomach+SI colon ICRP
+        VHEP = 0.02466*(WT) ! Hepatic volume (L) ICRP
+        VKID = 0.004247*(WT) ! Kidney volume (L) ICRP
+        VRES = 0.23612164*(WT) ! Rest of body volume bones ICRP
+    END
+
+    ! --------------------------- Blood flows (L/H) ------------------------- 
+    CO = (15*(WT)**(0.74)) ! Cardiac output in L/h
+    QART = CO ! Artery Blood flow
+    QVEN = CO ! Venous blood flow
+    QLUN = CO ! Lung blood flow
+
+    IF (SEX == 0)
+        QBRA = CO*(0.12) ! Brain blood flow
+        QHRT = CO*(0.05) ! Heart blood flow
+        QSKN = CO*(0.05) ! Skin blood flow
+        QMUS = CO*(0.12) ! Muscle blood flow
+        QADI = CO*(0.085) ! Adipose blood flow
+        QSPL = CO*(0.03) ! Spleen blood flow
+        QGIO = CO*(0.16) ! GIO blood flow
+        QKID = CO*(0.17) ! Kidney blood flow
+        QHEPA= CO*(0.065) ! Hepatic arterial blood flow
+        QRES = CO*(0.15) ! Rest of Body blood flow
+    ELSE IF (SEX == 1)
+        QBRA = CO*(0.12) ! Brain blood flow
+        QHRT = CO*(0.04) ! Heart blood flow
+        QSKN = CO*(0.05) ! Skin blood flow
+        QMUS = CO*(0.17) ! Muscle blood flow
+        QADI = CO*(0.05) ! Adipose blood flow
+        QSPL = CO*(0.03) ! Spleen blood flow
+        QGIO = CO*(0.15) ! GIO blood flow
+        QKID = CO*(0.19) ! Kidney blood flow
+        QHEPA= CO*(0.065) ! Hepatic arterial blood flow
+        QRES = CO*(0.135) ! Rest of Body blood flow
+    END
+
+    QHEPT = QHEPA + QSPL + QGIO ! Total hepatic blood flow HEPA+SPL+GIO)
+
+    ! ---------------------------- Unbound fraction ------------------------------
+    FUP = 0.65
+
+    ! --------------------------- Clearance parameters ---------------------------
+    constant CRCL = 50.0 ! ml/min
+    CLH   = EXP(2.60) ! Hepatic or Non-renal CL
+    RSEC  = 0.674
+    CRCL2 = CRCL
+    
+    IF (CRCL > 150) 
+        CRCL2 = 150 ! Cap high values where Cockcroft-Gault less reliable
+    END
+    
+    CLR = (CRCL2*60/1000)*FUP*(1+RSEC)
+    CL  = CLR+CLH
+
+    ! -------------------------- Partition Coefficients --------------------------
+    KLUN = EXP(1.20)
+    KBRA = EXP(-0.257)
+    KHRT = EXP(1.30)
+    KSKN = EXP(-0.335)
+    KMUS = EXP(0.0229)
+    KADI = EXP(-0.885)
+    KSPL = EXP(0.668)
+    KGIO = EXP(1.21)
+    KHEP = EXP(1.27)
+    KKID = EXP(2.09)
+    KRES = EXP(1.35)
+
+    ! Interstitial:plasma albumin concentration ratios
+    constant RALUN = 0.5
+    constant RABRA = 0.5
+    constant RAHRT = 0.5
+    constant RASKN = 1.0
+    constant RAMUS = 0.6
+    constant RAADI = 0.5
+    constant RASPL = 0.5
+    constant RAGIO = 0.9
+    constant RAHEP = 0.5
+    constant RAKID = 0.5
+    constant RARES = 0.5  ! Assumed
+    
+end ! initial
+
+dynamic
+    CARTU = CART*FUP
+    CVENU = CVEN*FUP
+    CLUNU = CLUN/(1.0 + RALUN*(1.0 - FUP)/FUP)
+    CBRAU = CBRA/(1.0 + RABRA*(1.0 - FUP)/FUP)
+    CHRTU = CHRT/(1.0 + RAHRT*(1.0 - FUP)/FUP)
+    CSKNU = CSKN/(1.0 + RASKN*(1.0 - FUP)/FUP)
+    CMUSU = CMUS/(1.0 + RAMUS*(1.0 - FUP)/FUP)
+    CADIU = CADI/(1.0 + RAADI*(1.0 - FUP)/FUP)
+    CSPLU = CSPL/(1.0 + RASPL*(1.0 - FUP)/FUP)
+    CGIOU = CGIO/(1.0 + RAGIO*(1.0 - FUP)/FUP)
+    CHEPU = CHEP/(1.0 + RAHEP*(1.0 - FUP)/FUP)
+    CKIDU = CKID/(1.0 + RAKID*(1.0 - FUP)/FUP)
+    CRESU = CRES/(1.0 + RARES*(1.0 - FUP)/FUP)
+end
+
+derivative        
+
+    ! ------------------------- Compartment concentrations -----------------------
+    CART = AART/VART ! AMT/Arterial volume
+    CVEN = AVEN/VVEN ! AMT/Venous volume
+    CLUN = ALUN/VLUN ! AMT/Lung volume
+    CBRA = ABRA/VBRA ! AMT/Brain volume
+    CHRT = AHRT/VHRT ! AMT/Heart volume
+    CSKN = ASKN/VSKN ! AMT/Skin volume
+    CMUS = AMUS/VMUS ! AMT/Muscle volume
+    CADI = AADI/VADI ! AMT/Adipose volume
+    CSPL = ASPL/VSPL ! AMT/Spleen volume
+    CGIO = AGIO/VGIO ! AMT/GIO volume
+    CHEP = AHEP/VHEP ! AMT/Hepatic volume
+    CKID = AKID/VKID ! AMT/Kidney volume
+    CRES = ARES/VRES ! AMT/Rest volume
+
+    VENIN1 = (CBRA*QBRA/KBRA)+(CHRT*QHRT/KHRT)+(CSKN*QSKN/KSKN)+(CMUS*QMUS/KMUS)
+    VENIN2 = (CADI*QADI/KADI)+(CHEP*QHEPT/KHEP)+(CKID*QKID/KKID)+(CRES*QRES/KRES)
+    VENIN3 = IVRATE
+    VENOUT = (QLUN*CVEN)
+    HEPIN  = (CART*QHEPA)+(CSPL*QSPL/KSPL)+(CGIO*QGIO/KGIO)
+    HEPOUT = (CHEP*QHEPT/KHEP)+(CHEP*CLH*FUP/KHEP)
+    
+    TOT    = AART+AVEN+ALUN+ABRA+AHRT+ASKN+AMUS+AADI+ASPL+AGIO+AHEP+AKID+ARES
+    TOTA   = TOT + AELIM
+    
+    ! -------------------------- Differential equations --------------------------
+    DAART = (QLUN*CLUN/KLUN)-(QART*CART)
+    DAVEN = VENIN1+VENIN2+VENIN3-VENOUT
+    DALUN = (QVEN*CVEN)-(QLUN*CLUN/KLUN)
+    DABRA = (QBRA*CART)-(QBRA*CBRA/KBRA)
+    DAHRT = (QHRT*CART)-(QHRT*CHRT/KHRT)
+    DASKN = (QSKN*CART)-(QSKN*CSKN/KSKN)
+    DAMUS = (QMUS*CART)-(QMUS*CMUS/KMUS)
+    DAADI = (QADI*CART)-(QADI*CADI/KADI)
+    DASPL = (QSPL*CART)-(QSPL*CSPL/KSPL)
+    DAGIO = (QGIO*CART)-(QGIO*CGIO/KGIO)
+    DAHEP = HEPIN-HEPOUT
+    DAKID = (QKID*CART)-(QKID*CKID/KKID)-CART*CLR
+    DARES = (QRES*CART)-(QRES*CRES/KRES)
+    
+    DAELIM = CART*CLR+(CHEP*CLH*FUP/KHEP)
+
+    AART = integ(DAART, 0.0)
+    AVEN = integ(DAVEN, 0.0)
+    ALUN = integ(DALUN, 0.0)
+    ABRA = integ(DABRA, 0.0)
+    AHRT = integ(DAHRT, 0.0)
+    ASKN = integ(DASKN, 0.0)
+    AMUS = integ(DAMUS, 0.0)
+    AADI = integ(DAADI, 0.0)
+    ASPL = integ(DASPL, 0.0)
+    AGIO = integ(DAGIO, 0.0)
+    AHEP = integ(DAHEP, 0.0)
+    AKID = integ(DAKID, 0.0)
+    ARES = integ(DARES, 0.0)
+    
+    AELIM = integ(DAELIM, 0.0)
+
+    constant tstop = 48.0        
+    termt(t >= tstop, 'Stopped on time limit')    
+
+end ! derivative    
+
+discrete iv_start
+
+    interval IVINTERVAL = 12.0
+    IVRATE = IVDOSE/IVDUR
+    
+    schedule iv_end at t + IVDUR
+    
+end ! discrete iv_start
+    
+discrete iv_end
+
+    IVRATE = 0.0
+    
+end ! discrete iv_end
+
+end ! model

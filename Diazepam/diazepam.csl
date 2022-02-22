@@ -1,0 +1,197 @@
+MODEL diazepam
+ 
+!--------------------------------------
+!
+! Ref:  Ivelina I. Gueorguieva, Ivan A. Nestorov, and Malcolm Rowland.
+! 	Fuzzy Simulation of Pharmacokinetic Models: Case Study of Whole Body 
+! 	Physiologically Based Model of Diazepam.  Journal of Pharmacokinetics 
+! 	and Pharmacodynamics, Vol. 31, No. 3, June 2004
+!
+!       Y. Igari, Y. Sugiyama, Y. Sawada, T. Iga, and M. Hanano. Prediction of 
+!       diazepam disposition in the rat and man by a physiologically based 
+!       pharmacokinetic model. J. Pharmacokinet. Phar. 11:577-593 (1983).
+!
+!--------------------------------------
+ 
+INITIAL
+
+ 
+	!-- Blood Flow Rates and Plasma:Tissue Partition Coefficients (250g Rat)
+ 
+!                     Blood Flow (mL/min)      Blood:Tissue      Tissue Volume (mL)
+!					   Parition Coefficient
+CONSTANT		qMu = 16.25,		KpMu = 1.88,	  VMu = 125.0							
+CONSTANT		qTe = 1.9,		KpTe = 5.24, 	  VTe = 2.5
+CONSTANT		qAd = 2.55,		KpAd = 21.23,  	  VAd = 10.0
+CONSTANT		qSk = 7.1,		KpSk = 3.33,	  VSk = 43.8
+CONSTANT		qHrt= 4.2,		KpHrt= 5.57,	  VHrt= 1.0
+CONSTANT                qBr = 0.78,		KpBr = 1.69,	  VBr = 1.2
+CONSTANT                qSpl= 20.25,		KpSpl= 3.70,	  VSpl= 15.0
+CONSTANT		qSt = 1.9,		KpSt = 5.25,	  VSt = 1.1
+CONSTANT 		qHep= 3.55,		KpLi = 7.83,	  VLi = 11.0
+CONSTANT		qKi = 16.61,		KpKi = 5.15, 	  VKi = 2.0
+CONSTANT		qRe = 4.91,		KpRe = 18.15,	  VRe = 15.8
+CONSTANT 		                        KpLu = 4.93,	  VLu = 1.2
+CONSTANT          						  VA  = 6.8
+CONSTANT							  VV  = 13.6
+ 
+ 
+	! Arterial, Pulmonary and Venous Blood Flow Rates
+		qV = qMu + qTe + qAd + qSk + qHrt + qBr + qSpl + qSt + qHep + qKi + qRe
+		qA = qV
+		qLu = qA
+		qLi = qSpl + qSt + qHep
+ 
+ 
+	! Schedule Dose/on and Dose/off
+		constant doseon = 0.0, doseoff = 5.0, dose=1000000.0
+		schedule startdose at doseon
+		!!!schedule enddose at doseoff
+		ivdoserate = 0.0
+ 
+		Cinterval CINT = 0.1
+		Constant TSTOP = 250
+ 
+END
+ 
+ 
+DYNAMIC
+ 
+DERIVATIVE
+ 
+	!-- Muscle Compartment
+	!---------------------
+	!-- Paramaters
+	Constant AMuIC = 0.
+	  AMu = integ(rAMu,AMuIC)
+	 rAMu = qMu*CA - qMu*CMu/KpMu
+	  CMu = AMu/VMu
+ 
+	!-- Testes Compartment
+	!---------------------
+	!-- Paramaters
+	Constant ATeIC = 0.
+	  ATe = integ(rATe,ATeIC)
+	 rATe = qTe*CA - qTe*CTe/KpTe
+	  CTe = ATe/VTe
+ 
+	!-- Adipose Compartment
+	!---------------------
+	!-- Paramaters
+	Constant AAdIC = 0.
+	  AAd = integ(rAAd,AAdIC)
+	 rAAd = qAd*CA - qAd*CAd/KpAd
+	  CAd = AAd/VAd
+ 
+	!-- Skin Compartment
+	!---------------------
+	!-- Paramaters
+	Constant ASkIC = 0.
+	  ASk = integ(rASk,ASkIC)
+	 rASk = qSk*CA - qSk*CSk/KpSk
+	  CSk = ASk/VSk
+ 
+	!-- Heart Compartment
+	!---------------------
+	!-- Paramaters
+	Constant AHrtIC = 0.
+	 AHrt = integ(rAHrt,AHrtIC)
+	rAHrt = qHrt*CA - qHrt*CHrt/KpHrt
+	 CHrt = AHrt/VHrt
+ 
+	!-- Brain Compartment
+	!---------------------
+	!-- Paramaters
+	Constant ABrIC = 0.
+	  ABr = integ(rABr,ABrIC)
+	 rABr = qBr*CA - qBr*CBr/KpBr
+	  CBr = ABr/VBr
+ 
+	!-- Splanchnic Compartment
+	!---------------------
+	!-- Paramaters
+	Constant ASplIC = 0.
+	 ASpl = integ(rASpl,ASplIC)
+	rASpl = qSpl*CA - qSpl*CSpl/KpSpl
+         CSpl = ASpl/VSpl
+ 
+	!-- Stomach Compartment
+	!---------------------
+	!-- Paramaters
+	Constant AStIC = 0.
+	 ASt = integ(rASt,AStIC)
+	rASt = qSt*CA - qSt*CSt/KpSt
+	 CSt = ASt/VSt
+ 
+	!-- Liver Compartment
+	!-- Parameters
+	Constant ALiIC = 0., KClLi = 400.0, fu = 0.15, Ratio = 1.0
+	initial
+	  fub=fu/Ratio
+	end
+ 
+	 ALi = integ(rALi,ALiIC)
+	rALi = qSt*CSt/KpSt + qSpl*CSpl/KpSpl + qHep*CA - (qSt+qSpl+qHep)*CLi/KpLi - CLi*KClLi*fub/KpLi
+	 CLi = ALi/VLi
+	!!!totalcleared = integ(CLi*KClLi*fub/KpLi,0.0)
+	dtotalcleared = CLi*KClLi*fub/KpLi
+        totalcleared = integ(dtotalcleared,0.0)
+
+ 
+ 
+	!-- Kidney Compartment
+	!---------------------
+	!-- Paramaters
+	Constant AKiIC = 0.
+	 AKi = integ(rAKi,AKiIC)
+	rAKi = qKi*CA - qKi*CKi/KpKi
+	 CKi = AKi/VKi
+ 
+	!-- Rest of Body 
+	!---------------------
+	!-- Paramaters
+	Constant AReIC = 0.
+	 ARe = integ(rARe,AReIC)
+	rARe = qRe*CA - qRe*CRe/KpRe
+	 CRe = ARe/VRe
+ 
+	!-- Lung Compartment
+	!---------------------
+	!-- Paramaters
+	Constant ALuIC = 0.
+	 ALu = integ(rALu,ALuIC)
+	rALu = qLu*CV - qLu*CLu/KpLu
+	 CLu = ALu/VLu
+ 
+	!-- Arterial Blood
+        !-----------------
+	Constant AAIC = 0
+	  AA = integ(rAA,AAIC)
+	 rAA = qLu*CLu/KpLu - qA*CA
+	  CA = AA/VA
+ 
+	!-- Venous Blood
+        !-----------------
+	Constant AVIC = 0.
+	 AV = integ(rAV,AVIC)
+	rAV = qMu*CMu/KpMu + qTe*CTe/KpTe + qAd*CAd/KpAd + qSk*CSk/KpSk + qHrt*CHrt/KpHrt ...
+		+ qBr*CBr/KpBr + qLi*CLi/KpLi + qKi*CKi/KpKi + qRe*CRe/KpRe + ivdoserate ...
+		- qV*CV
+	 CV = AV/VV
+	!!!totaldose=integ(IVDoseRate,AVIC)
+	totaldose=integ(IVDoseRate,0.0)
+ 
+        discrete startdose
+	    ivdoserate = dose/(doseoff-doseon)
+            schedule enddose at t + doseoff
+	end
+ 
+	discrete enddose
+	    ivdoserate = 0.0
+            schedule startdose at t + 120.0
+        end
+ 
+	termt(t >= tstop)
+end
+end
+end

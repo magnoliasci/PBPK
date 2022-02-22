@@ -1,0 +1,832 @@
+MODEL AALD									     
+
+! AALD.csl - ACETALDEHYDE INHALATION MODEL
+
+! Last updated by Ramesh Sarangapani (08/09/00)
+! THIS MODEL SIMULATED TISSUE DOSE GIVEN AALD EXPOSURE (in ppm)
+! This model computes the epithelial tissue concentration
+! of acetaldehyde and acetic acid concentration in the 
+! nasal cavity, nasopharynx and CA of rats and humans.
+! Updated 5.30.03. ALDH removed from olfactory epithelium. pH model added.
+
+! ALL CONCENTRATIONS ARE IN umoles/ml
+! Liver metabolism code is wrong VMAXL was used 
+! Systemic acetaladehyde set to 0. (nasal model only)
+									     
+INITIAL
+
+!----- Initialize Values
+AEXC=0
+LOGIC=1
+LOGIC2=1
+URTEXTR=0.0
+CIN=0.
+RHF=10
+AUCDO1=0.
+AUCDO1H=0.
+
+!-------------------------------------------
+
+CONSTANT CinPPM = 100.0  !'Inhaled Ethyl Acetate Conc. (ppm)'
+CONSTANT DIFU = 2.0e-4  !'tissue diffusivity (cm2/min)'
+CONSTANT MW1	  = 88.1 ! MW of Ethyl Acetate
+CONSTANT MW2      = 46.0 ! MW of Ethanol
+
+CONSTANT Hba  = 99.   !EA blood:air PC 
+CONSTANT HbaC = 99.   !Acetic acid blood:air PC
+CONSTANT Htb  = 99.   !EA lung tissue:blood PC
+CONSTANT HtbC = 99.   !Acetate lung tissue:blood PC
+Hta  = Hba*Htb     !EA tissue:air PC
+HtaC = HbaC*HtbC   !Acetic Acid tissue:air PC
+
+CONSTANT Hlb  = 99.   !EA liver:blood PC
+CONSTANT Hfb  = 99.   !EA fat:blood PC
+CONSTANT Hrpb  = 99.  !EA fat:blood PC
+CONSTANT Hppb  = 99.  !EA fat:blood PC
+
+
+! from CFD model flow to dorsal=15% and to ventral=85%
+! minute and alveolar ventilation from and EPA PK doc.
+
+CONSTANT FADR  = 99    !'Fraction flow to Dorsal Resp'
+CONSTANT FADO  = 99    !'Fraction flow to Dorsal Olf'
+CONSTANT FAVR  = 99    !'Fraction flow to Ventral Resp'
+!CONSTANT  VPU  = 99   !'Ventilation PUlmonary (ml/min)'
+CONSTANT   MV  = 50.   !'Minute Ventilation (ml/min)'
+
+! Ventilation Prameters
+! There are two variables, minute ventilation and tidal volume. Breathing rate
+! is calculated from the minute ventilation and the tidal volume assuming
+! tidal volume does not change. For non-exposure and exposure to non-irritants
+! this is a good approximation. These parameters can be adjusted for 
+! exposure to irritants when minute ventilation and respiratory rates are given.
+
+
+! tissue compartment volumes for LIver and FAT from
+! Brown, 1997 (table 5) and EPA PK ref. book (table 1.1)
+
+CONSTANT FTLI =  99    !'liver wt. as fraction BW'
+CONSTANT FFAT =  99    !'fat wt. as fraction BW'
+CONSTANT FTPP =  99    !'poorly perfused tissue wt. as fraction BW'
+CONSTANT FTABD = 99    !'Arterial Blood wt. as fraction of BW'
+CONSTANT FTVBD = 99    !'Venous Blood wt. as fraction of BW'
+CONSTANT    BW = 99    !'body weight (gm)'
+
+
+! Lumen volume for DR DO & VR from Frederick, 1998
+
+CONSTANT VLDR = 99   !'Volume Lumen Dorsal Resp (ml)'
+CONSTANT VLDO1 = 99  !'Volume Lumen Dorsal Olf 1 (ml)'
+CONSTANT VLDO2 = 99  !'Volume Lumen Dorsal Olf 2 (ml)'
+CONSTANT VLVR1 = 99   !'Volume Lumen Ventral Resp 1 (ml)'
+CONSTANT VLVR2 = 99   !'Volume Lumen Ventral Resp 2 (ml)'
+CONSTANT VLPL = 99   !'Volume Lumen Pharynx+Larynx (ml)'
+CONSTANT VLCA = 99   !Volume Lumen Conducting Airways (ml, 33% Tidal Volume)
+                                                
+
+! surface area for dr,do,vr as reported by Frederick et al, 1998
+! surface area for pu from (EPA RfC document, pp4-26) and
+
+CONSTANT SADR =  99  !'Surface Area DR (cm2)'
+CONSTANT SADO1 = 99  !'Surface Area DO1 (cm2)'
+CONSTANT SADO2 = 99  !'Surface Area DO2 (cm2)'
+CONSTANT SAVR1 = 99  !'Surface Area VR1 (cm2)'
+CONSTANT SAVR2 = 99  !'Surface Area VR2 (cm2)'
+CONSTANT SAPL =  99  !'Surface Area PL (cm2)'
+CONSTANT SACA = 99   !Surface Area Conducting Airways cm2 (Yeh Model, 1979)
+CONSTANT SAPU = 99   !'Surface Area PU (cm2)'
+
+
+! From Brown et al., 1997 and EPA PK ref table 1.1
+
+CONSTANT FBURT = 99
+CONSTANT FBLI = 99    !'Fraction blood flow to LI'
+CONSTANT FBRP = 99    !'Fraction blood flow to RP'
+CONSTANT FBFA = 99    !'Fraction blood flow to FAt'
+CONSTANT FBCA = 99    !'Fraction blood flow to CA'
+CONSTANT QPU  = 99    !'cardiac output (ml/min)'
+
+FBPP = 1.0 - (FBURT+FBCA+FBLI+FBRP+FBFA)
+
+SAURT = SADR+SADO1+SADO2+SAVR1+SAVR2+SAPL
+FBDR  = (SADR/SAURT)*FBURT
+FBDO1 = (SADO1/SAURT)*FBURT
+FBDO2 = (SADO2/SAURT)*FBURT
+FBVR1 = (SAVR1/SAURT)*FBURT
+FBVR2 = (SAVR2/SAURT)*FBURT
+FBPL  = (SAPL/SAURT)*FBURT
+
+
+QDR = FBDR*QPU	       !' blood flow to DR'
+QDO1 = FBDO1*QPU       !' blood flow to DO1'
+QDO2 = FBDO2*QPU       !' blood flow to DO2'
+QVR1 = FBVR1*QPU       !' blood flow to VR1'
+QVR2 = FBVR2*QPU       !' blood flow to VR2'
+QPL = FBPL*QPU	       !' blood flow to PL'
+QCA = FBCA*QPU	       !' blood flow to CA'
+QLI = FBLI*QPU	       !' blood flow to LI'
+QRP = FBRP*QPU	       !' blood flow to RP'
+QPP = FBPP*QPU	       !' blood flow to PP'
+QFA = FBFA*QPU	       !' blood flow to FAt'
+
+
+! following tissue thickness from Bogdanffy et al (minigas paper)
+
+CONSTANT WMUCUS = 0.001   !'Tissue thickness in DR (cm)'
+
+CONSTANT WTDR = 99   !'Tissue thickness in DR (cm)'
+CONSTANT WTDO = 99   !'Tissue thickness in DO (cm)'
+CONSTANT WTVR = 99   !'Tissue thickness in VR (cm)'
+CONSTANT WTPL = 99   !'Tissue thickness in PL (cm)'
+CONSTANT WTCA = 99   !'Tissue thickness in CA (assume equal to respiratory)'
+CONSTANT WTPU = 99   !'Tissue thickness in PU (cm)'
+
+CONSTANT WXDR = 99   !'blood eXchange region thickness in DR (cm)'
+CONSTANT WXDO = 99  !'blood eXchange region thickness in DO1 (cm)'
+CONSTANT WXVR = 99  !'blood eXchange region thickness in VR1 (cm)'
+CONSTANT WXPL = 99   !'blood eXchange region thickness in PL (cm)'
+CONSTANT WXCA = 99   !blood eXchange region thickness in CA (cm)
+
+
+VTDR = SADR*WTDR     !'Volume Tissue Dorsal Resp (ml)'
+VTDO1 = SADO1*WTDO  !'Volume Tissue Dorsal Olf 1 (ml)'
+VTDO2 = SADO2*WTDO  !'Volume Tissue Dorsal Olf 2 (ml)'
+VTVR1 = SAVR1*WTVR   !'Volume Tissue Ventral Resp 1 (ml)'
+VTVR2 = SAVR2*WTVR   !'Volume Tissue Ventral Resp 2 (ml)'
+VTPL = SAPL*WTVR     !'Volume Tissue Pharynx+Larynx (ml)'
+VTCA = SACA*WTCA     !'Volume Tissue Conducting Airways (ml)'
+VTPU = SAPU*WTPU     !'Volume Tissue PUlmonary (ml)'
+
+VXDR = SADR*WXDR     !'Volume Tissue Dorsal Resp (ml)'
+VXDO1 = SADO1*WXDO   !'Volume Tissue Dorsal Olf 1 (ml)'
+VXDO2 = SADO2*WXDO   !'Volume Tissue Dorsal Olf 2 (ml)'
+VXVR1 = SAVR1*WXVR   !'Volume Tissue Ventral Resp 1 (ml)'
+VXVR2 = SAVR2*WXVR   !'Volume Tissue Ventral Resp 2 (ml)'
+VXPL = SAPL*WXVR     !'Volume Tissue Pharynx+Larynx (ml)'
+VXCA = SACA*WXCA     !'Volume Tissue Conducting Airway (ml)'
+
+FTLUNG = (VTDR+VTDO1+VTDO2+VTVR1+VTVR2+VTPL+VTCA+VTPU &
+         +VXDR+VXDO1+VXDO2+VXVR1+VXVR2+VXPL+VXCA)/BW ! Calculated fraction of lung tissue
+
+FTRP = 0.91 - (FTLI+FFAT+FTPP+FTABD+FTVBD+FTLUNG)
+
+
+VTLI = FTLI*BW      !'Volume Tissue LIver (ml)'
+VFAT = FFAT*BW      !'Volume FAT (ml)'
+VTRP = FTRP*BW      !'Volume of Rapidly perfused (ml)'
+VTPP = FTPP*BW      !'volume of poorly perfused (ml)'
+VTAB = FTABD*BW     !'Volume Arterial BLooD (ml)'
+VTVB = FTVBD*BW	    !'Volume Venous BLooD (ml)'
+
+
+! From Frederick et al., 1998
+
+CONSTANT KGDR = 99   !CM/MIN
+CONSTANT KGDO1 = 99  !CM/MIN
+CONSTANT KGDO2 = 99  !CM/MIN
+CONSTANT KGVR1 = 99   !CM/MIN
+CONSTANT KGVR2 = 99   !CM/MIN
+CONSTANT KGPL = 99   !CM/MIN
+CONSTANT KGCA = 99 !CM/MIN
+!CONSTANT   KL = 0.4  CM/MIN
+KL = DIFU/(WMUCUS/2.)
+
+MTCDR   = 1/(1/KGDR + 1/(KL*Hta))   !'Mass Transfer Coeff  (cm/min)'
+MTCDO1  = 1/(1/KGDO1 + 1/(KL*Hta))  !'Mass Transfer Coeff  (cm/min)'
+MTCDO2  = 1/(1/KGDO2 + 1/(KL*Hta))  !'Mass Transfer Coeff  (cm/min)'
+MTCVR1  = 1/(1/KGVR1 + 1/(KL*Hta))  !'Mass Transfer Coeff  (cm/min)'
+MTCVR2  = 1/(1/KGVR2 + 1/(KL*Hta))  !'Mass Transfer Coeff  (cm/min)'
+MTCPL   = 1/(1/KGPL + 1/(KL*Hta))   !'Mass Transfer Coeff  (cm/min)'
+MTCCA   = 1/(1/KGCA + 1/(KL*Hta))   !'Mass Transfer Coeff  (cm/min)'
+
+KTXDR = DIFU*SADR/(WTDR/2.+WXDR/2.)
+KTXDO1 = DIFU*SADO1/(WTDO/2.+WXDO/2.)
+KTXDO2 = DIFU*SADO2/(WTDO/2.+WXDO/2.)
+KTXVR1 = DIFU*SAVR1/(WTVR/2.+WXVR/2.)
+KTXVR2 = DIFU*SAVR2/(WTVR/2.+WXVR/2.)
+KTXPL = DIFU*SAPL/(WTPL/2.+WXPL/2.)
+KTXCA = DIFU*SACA/(WTCA/2.+WXCA/2.)
+
+
+!---Aldehyde METABOLISM
+
+CONSTANT VMOH  = 99	!High Km ALDH Vmax, nasal Olf Sub (nmol/min/ml)
+CONSTANT VMRH  = 99 	!Acetaldehyde Vmax,  Resp Epithelium(High Km)
+CONSTANT VMLH  = 99	!Acetaldehyde Vmax, Liver (High Km)
+CONSTANT KMH   = 99	!Acetaldehyde High Km, Olfactory Epithelium
+CONSTANT KMLH  = 99	!Acetaldehyde HighKm, Liver (nmol/ml)
+
+CONSTANT VMOL  = 99	!Low Km ALDH Vmax, nasal Olf Sub (nmol/min/ml)
+CONSTANT VMRL  = 99 	!Acetaldehyde Vmax, Resp Epithelium(Low Km)
+CONSTANT VMLL  = 99	!Acetaldehyde Vmax, Liver (Low Km)
+CONSTANT KML   = 99	!Acetaldehyde Low Km, Dosal Respiratory Epithelium
+CONSTANT KMLL  = 99	!Acetaldehyde Low Km, Liver (nmol/ml)
+
+
+!---Acetate Metabolism
+
+CONSTANT VMCDO  = 99	!Acetate Vmax, Olfactory Epithelium (nmol/min/ml)
+CONSTANT VMCDR  = 99 	!Acetate Vmax, Dosal Respiratory Epithelium
+CONSTANT VMCVR  = 99 	!Acetate Vmax, Ventral Respiratory Epithelium
+CONSTANT VMCL   = 99	!Acetate Vmax, Liver
+CONSTANT VMCRP	= 99	!Acetate Vmax, Richly Perfused Tissue
+CONSTANT VMCPP	= 99	!Acetate Vmax, Poorly Perfused Tissue
+CONSTANT  KMC   = 99	!Acetate Km, All tissues (nmol/ml)
+
+
+!---Dosing Parameters
+
+CONSTANT TCHNG1 = 9999  ! !'daily rat expo (min)'	    6 hours/day
+CONSTANT TCHNG2 = 7200  !!'total days of expo (min)' 5 days/week
+CONSTANT DAILY = 1440  ! !'one day time (min)'
+CONSTANT WEEKLY = 10080 ! !'one week time (min)'	    7 days
+!CONSTANT TCNT = 0. ! turn on AUC Calc for human steady state
+
+CONSTANT TSTOP  = 10.  !'TOTAL RUN TIME'
+CONSTANT POINTS = 10.  !'NUMBER OF OUTPUT POINTS'
+
+
+  LOGIC = 1.
+ LOGIC2 = 1.
+
+SCHEDULE DAYOFF AT TCHNG1
+SCHEDULE WEKOFF AT TCHNG2
+
+
+VPU = 0.67*MV   !Alveolar Ventilation rate           
+VDR = FADR*MV   !'Ventilation Dorsal Resp (ml/min)'
+VDO = FADO*MV   !'Ventilation Dorsal Olf (ml/min)'
+VVR = FAVR*MV   !'Ventilation Ventral Resp (ml/min)' 
+
+END !INITIAL
+
+DYNAMIC
+
+CINTERVAL CINT = 0.1
+		
+
+ DISCRETE DAYOFF
+ LOGIC = 0.0
+ SCHEDULE DAYON AT (T+DAILY-TCHNG1)
+ END
+
+ DISCRETE DAYON
+ LOGIC = 1.0
+ SCHEDULE DAYOFF AT (T+TCHNG1)
+ END
+
+ DISCRETE WEKOFF
+ LOGIC2 = 0.0
+ SCHEDULE WEKON AT (T+WEEKLY-TCHNG2)
+ END 
+
+ DISCRETE WEKON
+ LOGIC2 = 1.0
+ SCHEDULE WEKOFF AT (T+TCHNG2)
+ END 
+ 
+END !'dynamic'
+
+DERIVATIVE
+
+
+! Sets Initial conditions for each exposure concentration.
+    CIN = LOGIC*LOGIC2*CinPPM*(4.e-2)  !'Inhaled EA Conc (nmoles/ml)'
+
+
+!******************************************************************************
+!		*						*             *
+!               *      Submodels for Metabolism and Uptake	*	      *
+!		*						*             *
+!									      *
+!									      *
+!	l=lumen  t=tissue  x=blood exchange region  DO=Dorsal Olfactory	      *
+!      DR=Dorsal Respiratory    VR = Ventral Respiratory L=Liver  PU=Lung     *
+!      PP=Poorly Perfused  RP=Richly Perfused  FA=Fat AB=Arterial Blood	      *
+!      VB=Venouse Blood							      *
+!           								      *
+!******************************************************************************
+
+
+!--ACETALDEHYDE SUBMODEL
+
+!----'AALD uptake and clearance in Dorsal Respiratory REGION'
+
+	RALDR = VDR*(CIN-CLDR) - MTCDR*SADR*(CLDR-CTDR/Hta)
+ 	 ALDR = INTEG(RALDR, 0.0)
+ 	 CLDR = ALDR/VLDR
+
+	RATDR = MTCDR*SADR*(CLDR-CTDR/Hta)-KTXDR*(FCTDR-FCXDR) -RMTDRH -RMTDRL
+	 ATDR = INTEG(RATDR, 0.0)
+	 CTDR = ATDR/VTDR                                !'in (nmoles/ml)'
+	FCTDR = CTDR/HtB
+
+	RAXDR = KTXDR*(FCTDR-FCXDR) -QDR*(CXDR/Htb-CAB)
+	 AXDR = INTEG(RAXDR, 0.0)
+	 CXDR = AXDR/VXDR                                !'in (nmoles/ml)'
+        FCXDR = CXDR/Htb
+
+  	 RMTDRH = VTDR*VMRH*FCTDR/(KMH+FCTDR)
+  	 RMTDRL = VTDR*VMRL*FCTDR/(KML+FCTDR)
+
+
+!----'AALD uptake and clearance in Anterior Dorsal Olfactory REGION'
+
+	RALDO1 = VDO*(CLDR -CLDO1) - MTCDO1*SADO1*(CLDO1-CTDO1/Hta)
+	 ALDO1 = INTEG(RALDO1, 0.0)
+ 	 CLDO1 = ALDO1/VLDO1
+ 	!ALDH activity removed 5.30.02. No activity mapped to epithelium. 
+	RATDO1 = MTCDO1*SADO1*(CLDO1-CTDO1/Hta)-KTXDO1*(FCTDO1-FCXDO1) 
+ 	 ATDO1 = INTEG(RATDO1, 0.0)
+ 	 CTDO1 = ATDO1/VTDO1                           !'in (nmoles/ml)'
+	FCTDO1 = CTDO1/Htb
+
+    AUCDO1c = INTEG(CTDO1,0.)
+    AUCDO1 = AUCDO1c/(tstop)		!AveC of AALD in VR1 (nmoles/ml)
+  
+    
+    !AUCDO1Hc=INTEG(CTDO1*step1,0.)
+	!Inttime=INTEG(Time*step1,0.)
+	
+	!AUCDO1H = AUCDO1Hc/(Inttime-1000)
+
+    
+	RAXDO1 = KTXDO1*(FCTDO1-FCXDO1)  &
+	        -QDO1*(CXDO1/Htb-CAB)-RMXO1H -RMXO1L
+ 	 AXDO1 = INTEG(RAXDO1, 0.0)
+ 	 CXDO1 = AXDO1/VXDO1                           !'in (nmoles/ml)'
+	FCXDO1 = CXDO1/Htb
+	
+	RMTO1H = VTDO1*VMOH*FCTDO1/(KMH+FCTDO1)
+	RMXO1H = VXDO1*VMOH*FCXDO1/(KMH+FCXDO1)
+	RMTO1L = VTDO1*VMOL*FCTDO1/(KML+FCTDO1)
+	RMXO1L = VXDO1*VMOL*FCXDO1/(KML+FCXDO1)
+	
+	
+!----'AALD uptake and clearance in Posterior Dorsal Olfactory REGION'
+
+	RALDO2 = VDO*(CLDO1 -CLDO2) - MTCDO2*SADO2*(CLDO2-CTDO2/Hta)
+	 ALDO2 = INTEG(RALDO2, 0.0)
+ 	 CLDO2 = ALDO2/VLDO2
+ 	!ALDH activity removed 5.30.02. No activity mapped to epithelium. 
+	RATDO2 = MTCDO2*SADO2*(CLDO2-CTDO2/Hta)  &
+	        -KTXDO2*(FCTDO2-FCXDO2) 
+ 	 ATDO2 = INTEG(RATDO2, 0.0)
+ 	 CTDO2 = ATDO2/VTDO2                           !'in (nmoles/ml)'
+	FCTDO2 = CTDO2/Htb
+    
+	RAXDO2 = KTXDO2*(FCTDO2-FCXDO2)  &
+	        -QDO2*(CXDO2/Htb-CAB)-RMXO2H -RMXO2L
+ 	 AXDO2 = INTEG(RAXDO2, 0.0)
+ 	 CXDO2 = AXDO2/VXDO2                            !'in (nmoles/ml)'
+	FCXDO2 = CXDO2/Htb
+	
+	RMTO2H = VTDO2*VMOH*FCTDO2/(KMH+FCTDO2)
+	RMXO2H = VXDO2*VMOH*FCXDO2/(KMH+FCXDO2)
+	RMTO2L = VTDO2*VMOL*FCTDO2/(KML+FCTDO2)
+	RMXO2L = VXDO2*VMOL*FCXDO2/(KML+FCXDO2)
+  			
+      
+!----'AALD uptake and clearance in Ventral Respiratory REGION 1'
+	
+	RALVR1 = VVR*(CIN -CLVR1) -MTCVR1*SAVR1*(CLVR1-CTVR1/Hta)
+ 	 ALVR1 = INTEG(RALVR1, 0.0)
+ 	 CLVR1 = ALVR1/VLVR1
+ 	 
+	RATVR1 = MTCVR1*SAVR1*(CLVR1-CTVR1/Hta)  &
+	        -KTXVR1*(FCTVR1-FCXVR1) -RMTV1H -RMTV1L
+  	 ATVR1 = INTEG(RATVR1, 0.0)
+ 	 CTVR1 = ATVR1/VTVR1                            !'in (nmoles/ml)'
+     FCTVR1 = CTVR1/Htb
+
+    AUCVR1c = INTEG(CTVR1,0.)
+    AUCVR1 = AUCVR1c/(tstop)		!AveC of AALD in VR1 (nmoles/ml)
+
+        
+	RAXVR1 = KTXVR1*(FCTVR1-FCXVR1) -QVR1*(CXVR1/Htb-CAB)
+ 	 AXVR1 = INTEG(RAXVR1, 0.0)
+ 	 CXVR1 = AXVR1/VXVR1                            !'in (nmoles/ml)'
+        FCXVR1 = CXVR1/Htb
+
+	 RMTV1H = VTVR1*VMRH*FCTVR1/(KMH+FCTVR1)	 
+	 RMTV1L = VTVR1*VMRL*FCTVR1/(KML+FCTVR1)	 
+	
+
+!----'AALD uptake and clearance in Ventral Respiratory REGION 2'
+	
+	RALVR2 = VVR*(CLVR1 - CLVR2) -MTCVR2*SAVR2*(CLVR2-CTVR2/Hta)
+ 	 ALVR2 = INTEG(RALVR2, 0.0)
+ 	 CLVR2 = ALVR2/VLVR2
+ 	 
+	RATVR2 = MTCVR2*SAVR2*(CLVR2-CTVR2/Hta)  &
+	        -KTXVR2*(FCTVR2-FCXVR2) -RMTV2H -RMTV2L
+  	 ATVR2 = INTEG(RATVR2, 0.0)
+ 	 CTVR2 = ATVR2/VTVR2                             !'in (nmoles/ml)'
+        FCTVR2 = CTVR2/Htb
+        
+	RAXVR2 = KTXVR2*(FCTVR2-FCXVR2) -QVR2*(CXVR2/Htb-CAB)
+ 	 AXVR2 = INTEG(RAXVR2, 0.0)
+ 	 CXVR2 = AXVR2/VXVR2                                !'in (nmoles/ml)'
+        FCXVR2 = CXVR2/Htb
+
+	 RMTV2H = VTVR2*VMRH*FCTVR2/(KMH+FCTVR2)	 
+	 RMTV2L = VTVR2*VMRL*FCTVR2/(KML+FCTVR2)	 
+
+
+	CURT = (VVR*CLVR2+VDO*CLDO2)/(VVR+VDO) 
+
+
+!----'AALD uptake and clearance in Pharynx+Larynx REGION'
+	
+	RALPL = MV*(CURT - CLPL) -MTCPL*SAPL*(CLPL-CTPL/Hta)
+ 	 ALPL = INTEG(RALPL, 0.0)
+ 	 CLPL = ALPL/VLPL
+ 	 
+	RATPL = MTCPL*SAPL*(CLPL-CTPL/Hta)  &
+	        -KTXPL*(FCTPL-FCXPL) -RMTPLH -RMTPLL
+  	 ATPL = INTEG(RATPL, 0.0)
+ 	 CTPL = ATPL/VTPL                                !'in (nmoles/ml)'
+        FCTPL = CTPL/Htb
+        
+	RAXPL = KTXPL*(FCTPL-FCXPL) -QPL*(CXPL/Htb-CAB)
+ 	 AXPL = INTEG(RAXPL, 0.0)
+ 	 CXPL = AXPL/VXPL                                !'in (nmoles/ml)'
+        FCXPL = CXPL/Htb
+
+	 RMTPLH = VTPL*VMRH*FCTPL/(KMH+FCTPL)	 
+	 RMTPLL = VTPL*VMRL*FCTPL/(KML+FCTPL)	 
+
+
+!-----AALD Concentration in the Conducting airways
+
+      RALCA = MV*(CLPL-CLCA) - MTCCA*SACA*(CLCA-CTCA/Hta)
+       ALCA = INTEG(RALCA, 0.0)
+       CLCA = ALCA/VLCA
+   	 
+      RATCA = -KTXCA*(FCTCA-FCXCA)+ MTCCA*SACA*(CLCA-CTCA/Hta)
+       ATCA = INTEG(RATCA, 0.0)
+       CTCA = ATCA/VTCA                              !'in (nmoles/ml)'
+      FCTCA = CTCA/Htb
+       
+       RAXCA = KTXCA*(FCTCA-FCXCA) -QCA*(CXCA/Htb-CAB)
+       AXCA = INTEG(RAXCA, 0.0)
+       CXCA = AXCA/VXCA                              !'in (nmoles/ml)'
+      FCXCA = CXCA/Htb
+
+
+!----'AALD Uptake in PUlmonary REGION'                
+
+	RATPU = VPU*(CLCA-CLPU) - QPU*(CvTPU-CVB) 
+ 	 ATPU = INTEG(RATPU, 0.0)			
+ 	CvTPU = ATPU/(VTPU*Htb)                          !'in (nmoles/ml)'
+         CLPU = CvTPU/Hba
+         		
+	
+!----AALD concentrations and metabolism in blood
+!--------- Arterial Blood
+                    
+	!--Concentration
+     	RAAB = (QPU * (CvTPU - CAB))
+     	 AAB = INTEG(RAAB, 0.0)                 
+         CAB = AAB / VTAB  
+         
+
+!--------- Venous Blood
+
+	!--Concentration
+	RAVB = (QLI*CvLI +QFA*CvFA +QRP*CvRP +QPP*CvPP +QCA*CXCA/Htb &
+               +QPL*CXPL/Htb +QVR1*CXVR1/Htb +QVR2*CXVR2/Htb +QDO1*CXDO1/Htb &
+               +QDO2*CXDO2/Htb +QDR*CXDR/Htb) - QPU*CVB
+         AVB = INTEG(RAVB, 0.0)
+	 CVB = 0. ! AVB/VTVB  	 !'in (nmoles/ml)'
+	 
+
+!----AALD Concentration and metabolism in LIver'
+
+	!--Concentration
+	RALI = QLI*(CAB-CvLI) -RMLIH -RMLIL
+	  ALI = INTEG(RALI, 0.0)
+ 	  CvLI = ALI/(VTLI*Hlb)                     !'in (nmoles/ml)'
+
+	!--Metabolism
+	RMLIH = VTLI*VMLH*CvLI/(KMLH+CvLI)
+	RMLIL = VTLI*VMLL*CvLI/(KMLL+CvLI)
+
+	       
+!----'AALD Concentration in FAt'
+ 	 RAFA = QFA*(CAB-CvFA)
+  	  AFA = INTEG(RAFA, 0.0)
+  	  CvFA = AFA/(VFAT*Hfb)                     !'in (nmoles/ml)'
+
+      		 
+!-----AALD Concentration and Metabolism in Richly Perfused Tissue
+
+	!--Concentration
+	 RARP = QRP*(CAB-CvRP)
+  	  ARP = INTEG(RARP, 0.0)
+ 	  CvRP = ARP/(VTRP*Hrpb)                    !'in (nmoles/ml)'
+		 	
+ 
+!----AALD Concentration and Metabolism in Poorly Perfused Tissue
+  	RAPP = QPP*(CAB-CvPP)
+  	 APP = INTEG(RAPP, 0.0)
+   	 CvPP = APP/(VTPP*Hppb)                      !'in (nmoles/ml)'
+   	 
+   	 
+
+!--Acetate SUBMODEL
+
+
+!----'Acetate Concentration in the Dorsal Respiratory REGION'
+
+      RACTDR = RMTDRH +RMTDRL -KTXDR*(CCTDR-CCXDR) & 
+               -RMTDRC -VDR*CCTDR/HtaC
+       ACTDR = INTEG(RACTDR, 0.0)
+       CCTDR = ACTDR/VTDR                              !'in (nmoles/ml)'
+      FCCTDR = CCTDR/HtbC
+        
+       RACXDR = KTXDR*(CCTDR-CCXDR) -QDR*(CCXDR/HtbC-CCAB)-RMXDRC
+       ACXDR = INTEG(RACXDR, 0.0)
+       CCXDR = ACXDR/VXDR                              !'in (nmoles/ml)'
+      FCCXDR = CCXDR/HtbC
+	
+      RMTDRC = VTDR*VMCDR*FCCTDR/(KMC+FCCTDR)
+      RMXDRC = VXDR*VMCDR*FCCXDR/(KMC+FCCXDR)
+
+!----'Acetate clearance in Dorsal Anterior Olfactory REGION'
+
+     RACTO1 =  -KTXDO1*(CCTO1-CCXO1) &
+              -RMTO1C -VDO*CCTO1/HtaC 
+      ACTO1 = INTEG(RACTO1, 0.0)
+      CCTO1 = ACTO1/VTDO1                              !'in (nmoles/ml)'
+     FCCTO1 = CCTO1/HtbC
+       
+     RACXO1 = RMXO1H +RMXO1L +KTXDO1*(CCTO1-CCXO1) &
+              -QDO1*(CCXO1/HtbC-CCAB) -RMXO1C
+      ACXO1 = INTEG(RACXO1, 0.0)
+      CCXO1 = ACXO1/VXDO1                              !'in (nmoles/ml)'
+     FCCXO1 = CCXO1/HtbC 
+      
+     RMTO1C = VTDO1*VMCDO*FCCTO1/(KMC+FCCTO1)
+     RMXO1C = VXDO1*VMCDO*FCCXO1/(KMC+FCCXO1)
+
+!----'Acetate clearance in Dorsal Posterior Olfactory REGION'
+
+     RACTO2 =  -KTXDO2*(CCTO2-CCXO2) &
+              -RMTO2C -VDO*CCTO2/HtaC 
+      ACTO2 = INTEG(RACTO2, 0.0)
+      CCTO2 = ACTO2/VTDO2                              !'in (nmoles/ml)'
+     FCCTO2 = CCTO2/HtbC
+       
+     RACXO2 = RMXO2H +RMXO2L +KTXDO2*(CCTO2-CCXO2) &
+              -QDO2*(CCXO2/HtbC-CCAB) -RMXO2C
+      ACXO2 = INTEG(RACXO2, 0.0)
+      CCXO2 = ACXO2/VXDO2                              !'in (nmoles/ml)'
+     FCCXO2 = CCXO2/HtbC 
+      
+     RMTO2C = VTDO2*VMCDO*FCCTO2/(KMC+FCCTO2)
+     RMXO2C = VXDO2*VMCDO*FCCXO2/(KMC+FCCXO2)
+
+      ccto = (acto1+acto2)/(vtdo1+vtdo2)
+       
+!----'Acetate Concentration in the Ventral Respiratory REGION 1'
+
+       RACTV1 = RMTV1H +RMTV1L -KTXVR1*(CCTVR1-CCXVR1) &
+               -RMTV1C -VVR*CCTVR1/HtaC
+       ACTVR1 = INTEG(RACTV1, 0.0)
+       CCTVR1 = ACTVR1/VTVR1                              !'in (nmoles/ml)'
+       FCCTV1 = CCTVR1/HtbC
+        
+      RACXV1 = KTXVR1*(CCTVR1-CCXVR1) -QVR1*(CCXVR1/HtbC-CCAB) &
+               -RMXV1C
+      ACXVR1 = INTEG(RACXV1, 0.0)
+      CCXVR1 = ACXVR1/VXVR1                              !'in (nmoles/ml)'
+      FCCXV1 = CCXVR1/HtbC
+      
+      RMTV1C = VTVR1*VMCVR*FCCTV1/(KMC+FCCTV1)
+      RMXV1C = VXVR1*VMCVR*FCCXV1/(KMC+FCCXV1)
+
+
+!----'Acetate Concentration in the Ventral Respiratory REGION 2'
+
+      RACTV2 = RMTV2H +RMTV2L -KTXVR2*(CCTVR2-CCXVR2) &
+               -RMTV2C -VVR*CCTVR2/HtaC
+      ACTVR2 = INTEG(RACTV2, 0.0)
+      CCTVR2 = ACTVR2/VTVR2                          !'in (nmoles/ml)'
+      FCCTV2 = CCTVR2/HtbC
+        
+      RACXV2 = KTXVR2*(CCTVR2-CCXVR2) -QVR2*(CCXVR2/HtbC-CCAB) &
+               -RMXV2C
+      ACXVR2 = INTEG(RACXV2, 0.0)
+      CCXVR2 = ACXVR2/VXVR2                          !'in (nmoles/ml)'
+      FCCXV2 = CCXVR2/HtbC
+      
+      RMTV2C = VTVR2*VMCVR*FCCTV2/(KMC+FCCTV2)
+      RMXV2C = VXVR2*VMCVR*FCCXV2/(KMC+FCCXV2)
+
+
+!----'Acetate Concentration in the Pharynx+Larynx REGION'
+
+      RACTPL = RMTPLH +RMTPLL -KTXPL*(CCTPL-CCXPL) &
+               -RMTPLC -MV*CCTPL/HtaC
+       ACTPL = INTEG(RACTPL, 0.0)
+       CCTPL = ACTPL/VTPL                              !'in (nmoles/ml)'
+      FCCTPL = CCTPL/HtbC
+        
+      RACXPL = KTXPL*(CCTPL-CCXPL) -QPL*(CCXPL/HtbC-CCAB) -RMXPLC
+       ACXPL = INTEG(RACXPL, 0.0)
+       CCXPL = ACXPL/VXPL                              !'in (nmoles/ml)'
+      FCCXPL = CCXPL/HtbC
+      
+      RMTPLC = VTPL*VMCVR*FCCTPL/(KMC+FCCTPL)
+      RMXPLC = VXPL*VMCVR*FCCXPL/(KMC+FCCXPL)
+
+
+
+       RAEXC = VDR*CCTDR/HtaC +VDO*CCTO1/HtaC &            
+	             +VDO*CCTO2/HtaC +VVR*CCTVR1/HtaC &
+	             +VVR*CCTVR2/HtaC +MV*CCTPL/HtaC
+        AEXC = INTEG(RAEXC, 0.0)       
+
+
+!----'Acetate Concentration in pulmonary REGION' 
+
+	RACTPU = QPU*(CCVB-CvCTPU) -RMPUC
+ 	 ACTPU = INTEG(RACTPU, 0.0)			
+ 	CvCTPU = ACTPU/(VTPU*HtbC)  
+ 	
+ 	 RMPUC = VTPU*VMCRP*CvCTPU/(KMC+CvCTPU)
+ 	 
+ 	!----Acetate concentrations in blood
+ !--------- Arterial Blood
+ 
+ 	 !--Concentration
+      	 RACAB = QPU*(CvCTPU-CCAB) 
+      	  ACAB = INTEG(RACAB, 0.0)                 
+          CCAB = ACAB / VTAB  
+          
+ !--------- Venous Blood
+ 
+ 	!--Concentration
+ 	RACVB = (QLI*CvCLI +(QRP+QCA)*CvCRP +(QPP+QFA)*CvCPP &
+         	+QVR1*CCXVR1/HtbC +QVR2*CCXVR2/HtbC +QPL*CCXPL/HtbC &
+         	+QDO1*CCXO1/HtbC +QDO2*CCXO2/HtbC +QDR*CCXDR/HtbC) - QPU*CCVB 
+         ACVB = INTEG(RACVB, 0.0)
+ 	 CCVB = ACVB/VTVB  	 !'in (nmoles/ml)'
+ 	 
+ !----Acetate Concentration and metabolism in LIver'
+ 
+ 	!--Concentration
+ 	RACLI = QLI*(CCAB-CvCLI) +RMLIH +RMLIL -RMLIC
+  	 ACLI = INTEG(RACLI, 0.0)
+  	CvCLI = ACLI/(VTLI*HtbC)                        !'in (nmoles/ml)'
+ 
+ 	!--Metabolism
+ 	RMLIC = VTLI*VMCL*CvCLI/(KMC+CvCLI)		!'in (nmoles/ml)'
+ 
+ !-----Acetate Concentration in Richly Perfused Tissue
+ 
+ 	!--Concentration
+ 	 RACRP = (QRP+QCA)*(CCAB-CvCRP) -RMRPC
+   	  ACRP = INTEG(RACRP, 0.0)
+  	 CvCRP = ACRP/(VTRP*HtbC)                      !'in (nmoles/ml)'
+ 		
+ 	 RMRPC = VTRP*VMCRP*CvCRP/(KMC+CvCRP)	
+	
+!----Acetate Concentration in Poorly Perfused Tissue (Fat Compartment added)
+   	RACPP = (QPP + QFA)*(CCAB-CvCPP) -RMPPC
+   	 ACPP = INTEG(RACPP, 0.0)
+    	 CvCPP = ACPP/((VTPP + VFAT)*HtbC)                      !'in (nmoles/ml)'
+	
+	RMPPC = (VTPP + VFAT)*VMCPP*CvCPP/(KMC+CvCPP)		!'in (nmoles/ml)'
+
+
+!--pH Submodel--Constants
+CONSTANT PHINIT=7.4          !Initial intracellular pH
+CONSTANT NH=1.975            !Hill Coefficient
+CONSTANT KH=2.93E-7          !(mmoles/mL) 
+CONSTANT PKA=6.8            ! Composite pKa of cellular buffers
+CONSTANT VMAP1=6.37E-2       !Proton pump rate mmoles/ml/min
+         
+CONSTANT ATOTAL=0.05         !Intracellular [Buffer] (mmoles/mL)
+KA = 10**(-PKA)              !Acid diss const buffer (mmoles/mL)
+HFREE0 = (10**(-PHINIT))     !Initial cellular [H+](mmoles/mL)
+
+!---Dorsal Olfactory Compartment 1 pH 
+	
+	RHFDO1 = 2*(RMXO1H + RMXO1L)/1E6/VXDO1 			!units mmole/ml/min
+	RHRDO1= VH1DO1-VHBSLDO1                       		!mmole/ml/min
+	RHDO1=RHFDO1-RHRDO1                           		!mmoles/ml/min
+	HTOTALDO1 = INTEG(RHDO1,HT0DO1)  			!mmoles/ml
+	HADO1=(KA+HTOTALDO1+ATOTAL-SQRT((HTOTALDO1+KA)**2 &
+	+ATOTAL*(ATOTAL+2*KA-2*HTOTALDO1)))/2 			!mmoles/ml
+
+
+	HFREEDO1 = HTOTALDO1 - HADO1                       	!mmoles/ml
+	HT0DO1 = HFREE0 * (1+ATOTAL/(KA+HFREE0))     		!mmoles/ml
+	PHDO1 = LOG10(1/HFREEDO1)
+	HAUCDO1 = INTEG(HFREEDO1,0.0)
+	VH1DO1 = (VMAP1*HFREEDO1**NH)/(KH**NH+HFREEDO1**NH)    	!mmole/ml/min
+	VHBSLDO1=(VMAP1*HFREE0**NH)/(KH**NH+HFREE0**NH)  	!mmole/ml/min
+
+!---Ventral Respiratory Compartment 1 pH 
+	
+	RHFVO1 = 2*(RMTV1H + RMTV1L)/1E6/VTVR1 			!units mmole/ml/min
+	RHRVO1= VH1VO1-VHBSLVO1                       		!mmole/ml/min
+	RHVO1=RHFVO1-RHRVO1                           		!mmoles/ml/min
+	HTOTALVO1 = INTEG(RHVO1,HT0VO1)  			!mmoles/ml
+	HAVO1=(KA+HTOTALVO1+ATOTAL-SQRT((HTOTALVO1+KA)**2 &
+	+ATOTAL*(ATOTAL+2*KA-2*HTOTALVO1)))/2 			!mmoles/ml
+
+
+	HFREEVO1 = HTOTALVO1 - HAVO1                       	!mmoles/ml
+	HT0VO1 = HFREE0 * (1+ATOTAL/(KA+HFREE0))     		!mmoles/ml
+	PHVO1 = LOG10(1/HFREEVO1)
+	HAUCVO1 = INTEG(HFREEVO1,0.0)
+	VH1VO1 = (VMAP1*HFREEVO1**NH)/(KH**NH+HFREEVO1**NH)    	!mmole/ml/min
+	VHBSLVO1=(VMAP1*HFREE0**NH)/(KH**NH+HFREE0**NH)  	!mmole/ml/min
+
+             
+!--MASS BALANCE 
+
+!-----SYSTEM MASS BALANCE
+ 
+ 
+!--------Ethyl Acetate
+
+DIFFMASS = AIN -TMASS1 -TMASS2
+
+       RAIN = MV*(CIN-CLCA)+VPU*(CLCA-CLPU)
+	AIN = INTEG(RAIN, 0.0)    	
+	
+	TMASS1 = ATDR+AXDR+ALDR+ATDO1+AXDO1+ALDO1+ATDO2+AXDO2+ALDO2 &
+	           +ATVR1+AXVR1+ALVR1+ATVR2+AXVR2+ALVR2+ATPL+AXPL+ALPL &
+	           +ATPU+AAB+AVB+AFA+ALI+ARP+APP+AXCA+ATCA+ALCA 
+      RATMASS2 = RMTDRH+RMTDRL+RMXO1H &
+                   +RMXO1L+RMXO2H+RMXO2L+RMTV1H+RMTV1L+RMTV2H+RMTV2L &
+                   +RMTPLH+RMTPLL+RMLIH+RMLIL  
+	TMASS2 = INTEG(RATMASS2,0.0)
+
+!--------ACETATE
+
+DIFFMASSAC = MASSINAC -TMASSAC1 -TMASSAC2 -AEXC
+
+	TMASSAC1 = ACTDR+ACXDR+ACTO1+ACXO1+ACTO2+ACXO2+ACTVR1+ACXVR1 &
+	 	   +ACTVR2+ACXVR2+ACTPL+ACXPL+ACTPU+ACAB+ACVB+ACLI+ACRP+ACPP 
+      RATMASSAC2 = RMTDRC+RMTO1C+RMTO2C+RMTV1C+RMTV2C+RMTPLC+RMLIC+RMRPC &
+                   +RMPPC+RMPUC+RMXO1C+RMXO2C+RMXDRC+RMXV1C+RMXV2C+RMXPLC
+	TMASSAC2 = INTEG(RATMASSAC2,0.0)
+      MASSALDMET = RMTDRH+RMTDRL+RMXO1H &
+                   +RMXO1L+RMXO2H+RMXO2L+RMTV1H+RMTV1L+RMTV2H+RMTV2L &
+                   +RMTPLH+RMTPLL+RMLIH+RMLIL  
+	MASSINAC = INTEG(MASSALDMET, 0.0)
+
+ 
+!--FLOW BALANCE
+
+	FLOW = QFA+QLI+QPP+QRP+QDO1+QDO2+QDR+QVR1+QVR2+QPL+QCA
+	FLOWDIFF= QPU-FLOW
+
+
+termt(T > TSTOP)
+
+
+
+
+!----URT fractional extraction'
+
+FLUXDR = 100.*VDR*(CIN-CLDR)/SADR
+FLUXO1 = 100.*VDO*(CLDR-CLDO1)/SADO1
+FLUXO2 = 100.*VDO*(CLDO1-CLDO2)/SADO2
+FLUXV1 = 100.*VVR*(CIN-CLVR1)/SAVR1
+FLUXV2 = 100.*VVR*(CLVR1-CLVR2)/SAVR2
+FLUXPL = 100.*MV*(CURT-CLPL)/SAPL
+FLUXCA = 100.*MV*(CLPL-CLCA)/SACA
+FLUXPU = 100.*VPU*(CLCA-CLPU)/SAPU
+
+EXTNC  = 100.*(CinPPM*(4.e-2)-CURT)/(CinPPM*(4.e-2))
+EXTPL  = 100.*(CinPPM*(4.e-2)-CLPL)/(CinPPM*(4.e-2))
+EXTCA  = 100.*(CinPPM*(4.e-2)-CLCA)/(CinPPM*(4.e-2))
+EXTPU  = 100.*(MV*CinPPM*(4.e-2)-VPU*CLPU)/(MV*CinPPM*(4.e-2))
+    
+END !'derivative'
+
+TERMINAL
+
+IF(t > tstop)
+Cinppmdr =cinppm
+ctdo1dr=ctdo1
+ctvr1dr=ctvr1
+
+phdo1dr=phdo1
+hfreedo1dr=hfreedo1
+phvo1dr=phvo1
+hfreevo1dr=hfreevo1
+
+
+END
+
+
+END !Terminal
+
+END !'program'

@@ -1,0 +1,105 @@
+
+MODEL diffusion_limited
+ 
+INITIAL
+  !  Physiological parameters
+  CONSTANT  BW = 0.25   	!Body weight - kg
+  CONSTANT  VLC = 0.03   	!Proportion body as liver tissue
+  CONSTANT  VFC = 0.10		!Proportion body as liver tissue
+  CONSTANT  VFBC = 0.05		!Proportion of fat as blood
+  CONSTANT  VBC = 0.91		!Proportion of body as perfused tissue
+  CONSTANT  VPlasC = 0.073	!Proportion of body as plasma
+  CONSTANT  QCC = 15.0     	!Cardiac output -l/h-kg
+  CONSTANT  QLC = 0.20  	!Fractional blood flow to Liver
+  CONSTANT  QFC = 0.05  	!Fractional blood flow to Fat
+ 
+  !   Chemical-specific parameters
+  CONSTANT  PF = 100.0   	!Fat partition coefficient
+  CONSTANT  PT = 2.0		!Tissue partition coefficient
+  CONSTANT  PL = 10.0 	        !Liver partition coefficient
+  CONSTANT  Kelim1 = 0.005	!Elimination - L/h-kg
+  CONSTANT  Kelim2 = 0.005	!Elimination - L/h-kg
+  CONSTANT  PAFC = 100.0		!Diffusion in fat - L/h-kg
+ 
+  !Experiment Parameters
+  CONSTANT TSTART = 0.0		!Start time of experiment - h
+  CONSTANT TSTOP = 24.0	!Length of experiment - h
+  CONSTANT TINF = 2.14		!iv infusion time - h
+  CONSTANT ivdose = 0.6		!iv dose - mg/kg
+  CONSTANT tchng = 70.0		
+ 
+  !   Calculated parameters
+  VF    = VFC*BW                !Fat Volume - L
+  VL    = VLC*BW                !Liver volume - L
+  VPlas = VPlasC*BW		!Plasma volume  - L
+  VT    = (0.91*BW)-VL-VPlas-VF 	!Volume of remaining rissues - L
+  VFB   = VFBC * VF		!Fat blood volume - L
+  QC    = QCC*BW^0.74      	!Cardiac output - L/h
+  QL    = QLC*QC            	!Liver blood flow - L/h
+  QF    = QFC*QC            	!Fat blood flow - L/h
+  QT    = QC-QL-QF          	!Richly perfused tissue blood flow L/h
+  PAF   = PAFC *QF		!Diffusion in fat - L/h
+  rdose = ivdose*BW/TINF	!iv infusion rate - mg/h
+  adose = ivdose*BW		!Total amount dosed to animal - mg'
+ 
+END     !End of initial 
+ 
+DYNAMIC 
+
+  DERIVATIVE 
+ 
+    IF t < tchng
+      KelimC = Kelim1
+    ELSE
+      KelimC = Kelim2
+    END
+ 
+    Kelim = KelimC*BW^0.75
+ 
+    !iv dosing
+    IF t <= TINF
+      riv = rdose       !iv dose rate - mg/h
+    ELSE 
+      riv = 0.0
+    END
+ 
+    !AT = Amount in body (mg)
+    RAB = QT*(CA-CVT)		!rate of change of amt in rest of body-mg/h
+    AB = integ (RAB,0.0)	!amount in body - mg
+    CT = AB/VT			!concentration in body - mg/L
+    CVT = CT/PT			!concentration in body capillary blood - mg/L
+ 
+    !AFB = Amount in fat blood (mg)
+    RAFB = QF*(CA-CVF) + PAF*(CF/PF-CVF) !rate of change of amt in fat blood- mg/h
+    AFB = integ (RAFB, 0.0)	!amount in fat blood - mg
+    CVF = AFB/VFB		!concentration in fat blood - mg/L
+ 
+    !AF = Amount in fat tissue (mg)	
+    RAF = PAF*(CVF - CF/PF)	!rate of change of amt in fat - mg/h
+    AF  = integ (RAF, 0.0)	!amount in fat - mg
+    CF  = AF/VF			!concentration in fat - mg/L
+ 
+    !AL = Amount in liver tissue (mg)
+    RAL = QL*(CA-CVL)-RAM	!rate of change of amt in liver - mg/h
+    AL  = integ (RAL, 0.0)	!amount liver - mg
+    CL  = AL/VL 		!concentration in liver - mg/L
+    CVL = CL/PL			!concentration in liver blood - mg/L
+    !AM = Amount metabolized (mg)
+    RAM = Kelim*CVL
+    AM  = integ (RAM, 0.0)	!amount metabolized - mg
+ 
+ 
+    CA     = APlas/VPlas				!concentration in plasma - mg/L
+    RAPlas = (QL*CVL)+(QF*CVF)+(QT*CVT)+riv - (QC*CA) 	!rate of change in amount in plasma - mg/h
+    APlas  = INTEG (RAPlas, 0.0)			        !amount in plasma - mg
+ 
+    !Mass Balance Equations
+    Tmass = AB + AF + AL + AM + APlas + AFB     !Amount in whole body - mg
+    BAL = Adose - TMASS				!Difference in amt dosed and amt in organism (this should equal zero if your code is right)
+ 
+    TERMT(t >= TSTOP, 'simulation stop on time')
+ 
+  END	!End of derivative	
+END	!End of dynamic
+ 
+END	!End of program
