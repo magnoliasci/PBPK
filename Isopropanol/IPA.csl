@@ -1,0 +1,480 @@
+MODEL IPA ! Isopropanol/Acetone model
+! Revised lung description 2/2/00
+! Removed lung and skin metabolism code 2/4/00
+! FFC replaced with kUrt (independent of QP)
+! Added code for repeated inhalation exposure (9/5/00)
+! Changed code 9-6-99 to account for endogenous production of acetone
+!  for both isopropanol and acetone dosing
+
+INITIAL
+
+  DIMENSION LOGICAL  CC      ! To control whether closed or open chamber
+
+! Chamber Parameter
+  CONSTANT      CC = FALSE        ! Default to open chamber
+  CONSTANT    VChC = 9.1          ! Volume of closed chamber
+  CONSTANT    kLCC = 0.0          ! Chamber loss
+
+! Rat Total Pulmonary Ventilation Rate (L/hr for 1 kg animal)
+  CONSTANT     QPC = 24.75        ! Total pulmonary ventilation (L/hr - 1 kg)
+
+! Rat Blood Flows (fraction of cardiac output)
+  CONSTANT     QCC = 14.6         ! Cardiac output (L/hr - 1 kg animal)
+  CONSTANT   QBrnC = 0.02         ! Brain
+  CONSTANT   QFatC = 0.07         ! Fat
+  CONSTANT   QLivC = 0.183        ! Liver
+  CONSTANT   QRapC = 0.557        ! Rapidly perfused
+  CONSTANT   QSknC = 0.058        ! Skin
+  CONSTANT   QSlwC = 0.17         ! Slowly perfused (includes skin)
+
+! Rat Tissue Volumes (fraction of body weight)
+  CONSTANT      BW = 0.22         ! Body weight (kg)
+  CONSTANT   VAlvC = 0.007        ! Alveolar blood
+  CONSTANT   VBrnC = 0.006        ! Brain
+  CONSTANT   VFatC = 0.10         ! Fat
+  CONSTANT   VLivC = 0.034        ! Liver
+  CONSTANT   VMucC = 0.0001       ! Mucous
+  CONSTANT   VRapC = 0.044        ! Rapidly perfused
+  CONSTANT   VSlwC = 0.65         ! Slowly perfused (includes skin)
+  CONSTANT   Depth = 0.10         ! Skin thickness (cm)
+  CONSTANT      DS = 0.15         ! Dead space volume (fraction)
+
+! Molecular Weights
+  CONSTANT      MW = 60.09        ! Isopropanol
+  CONSTANT     MW1 = 58.08        ! Acetone
+
+     Stoch = MW1/MW
+
+! Isopropanol Tissue/Blood Partition Coefficients (from Kaneko et al.)
+  CONSTANT      PB = 1290.0       ! Blood/air
+  CONSTANT     PLq = 1500.0       ! Saline/air
+  CONSTANT    PMuc = 1290.0       ! Mucous/air
+  CONSTANT    PBrn = 0.88         ! Brain
+  CONSTANT    PFat = 0.21         ! Fat
+  CONSTANT    PLiv = 0.76         ! Liver
+  CONSTANT    PRap = 0.79         ! Rapidly perfused tissue
+  CONSTANT    PSlw = 0.85         ! Slowly perfused tissue
+
+! Calculation of Skin Partition Coefficients
+      PSkn = (0.3*PFat*PB) + (0.7*PSlw*PB)      ! Skin/air partition
+     PSknB = PSkn / PB                          ! Skin/blood partition
+     PSknL = PSkn / PLq                         ! Skin/saline partition
+
+! Dermal Exposure Parameters
+  CONSTANT    Area = 4.3          ! Exposed area (cm^2)
+  CONSTANT       P = 0.0          ! Permeability constant (cm/hr)
+  CONSTANT   ICSFC = 0.0          ! Initial concentration on skin (mg/mL)
+  CONSTANT   IVSFC = 0.0          ! Initial volume on skin surface (mL)
+
+! Isopropanol Metabolism Parameters
+  CONSTANT   VMaxC = 150.0        ! Maximum reaction rate (mg/hr)
+  CONSTANT      KM = 500.0        ! Michaelis-Menten (mg/mL)
+  CONSTANT     KFC = 0.0          ! First order rate constant (/hr)
+
+! Acetone Tissue/Blood Partition Coefficients
+!  (from Fiserova-Bergerova using Morris value for PB1)
+  CONSTANT     PB1 = 275.0        ! Blood/air
+  CONSTANT   PBrn1 = 0.50         ! Brain
+  CONSTANT   PFat1 = 0.31         ! Fat
+  CONSTANT   PLiv1 = 0.60         ! Liver
+  CONSTANT   PRap1 = 0.53         ! Rapidly perfused tissue
+  CONSTANT   PSlw1 = 0.55         ! Slowly perfused tissue
+
+! Acetone Metabolism Parameters
+  CONSTANT  VMaxC1 = 7.5          ! Maximum reaction rate (mg/hr)
+  CONSTANT     KM1 = 75.0         ! Michaelis-Menten (mg/mL)
+  CONSTANT    KFC1 = 0.0          ! First order rate constant (/hr)
+
+! Endogenous Acetone Production - Dosed with Isopropanol
+  CONSTANT CEndoC1 = 0.6          ! Endogenous concentration of acetone (mg/L)
+  CONSTANT REndoC1 = 0.12         ! Endogenous rate of production of acetone (mg/hr)
+
+! Endogenous Acetone Production - Dosed with Acetone
+  CONSTANT  CEndoC = 0.0          ! Endogenous concentration of acetone (mg/L)
+  CONSTANT  REndoC = 0.0          ! Endogenous rate of production of acetone (mg/hr)
+
+! Uptake and Clearance Parameters
+  CONSTANT   ClUrC = 0.004        ! Urinary clearance of parent (L/hr)
+  CONSTANT   kUrtC = 11.0         ! URT uptake (L/hr)
+  CONSTANT     kAD = 0.5          ! Absorption from duodenum (/hr)
+  CONSTANT     kAS = 2.0          ! Absorption from stomach (/hr)
+  CONSTANT     kTD = 0.25         ! Excretion (/hr)
+  CONSTANT    kTSD = 3.0          ! Transfer - stomach to duodenum (/hr)
+
+! Dosing Parameters
+  CONSTANT    Conc = 0.0          ! Inhaled concentration (ppm)
+  CONSTANT  IVDose = 0.0          ! IV dose (mg/kg)
+  CONSTANT   PDose = 0.0          ! Oral dose (mg/kg)
+  CONSTANT  PDrink = 0.0          ! Drinking water dose (mg/kg/day)
+  CONSTANT   TChng = 0.0          ! Length of inhalation exposure (hrs)
+  CONSTANT  DaysWk = 1.0          ! Number of exposure days per week
+  CONSTANT    TMax = 24.0         ! Maximum time for exposures
+  CONSTANT    TInf = 0.20         ! Length of IV injection (hrs)
+  CONSTANT    Rats = 1.0          ! Number of animals in experiment
+
+! Simulation Control Parameters
+  CONSTANT   TStop = 24.0
+  CONSTANT   CIntC = 0.01
+
+  IF (~ CC)
+      VCh = 1.0e+20                   ! Large chamber = open chamber
+      kLC = 0.0
+  ELSE
+      VCh = VChC - (Rats*BW)          ! Calculate net chamber volume
+      kLC = kLCC
+  END
+
+       AI0 = (Conc*VCh*MW) / 24450.0   ! Initial amount in chamber
+
+! Calculate Total Area of Skin (cm^2)
+     TArea = 9.1 * ((BW*1000.0)**0.666)
+
+! Scaled Pulmonary Ventilation Rate (L/hr)
+        QP = QPC * (BW**0.75)
+      QAlv = 0.67 * QP
+
+! Scaled Blood Flows (L/hr)
+       QCN = QCC * (BW**0.75)
+      QBrn = QBrnC * QCN
+      QFat = QFatC * QCN
+      QLiv = QLivC * QCN
+      QRap = QRapC * QCN
+      
+  IF (ICSFC < 0.0)
+      QSkn = QSknC * QCN * (Area/TArea)
+  ELSE
+      QSkn = 0.0
+  END
+  
+      QSlw = (QSlwC * QCN) - QSkn
+        QC = QBrn + QFat + QLiv + QRap + QSkn + QSlw
+
+! Scaled Tissue Volumes (L)
+      VAlv = VAlvC * BW
+      VBrn = VBrnC * BW
+      VFat = VFatC * BW
+      VLiv = VLivC * BW
+      VMuc = VMucC * BW
+      VRap = VRapC * BW
+      VSkn = (Area * Depth) / 1000.0
+      
+  IF (ICSFC > 0.0)
+      VSlw = (VSlwC * BW) - VSkn
+  ELSE
+      VSlw = VSlwC * BW
+  END
+
+! Initial Amounts of Acetone (mg) when dosed with isopropanol
+    IABrn1 = CEndoC1 * VBrn * PBrn1
+    IAFat1 = CEndoC1 * VFat * PFat1
+    IALiv1 = CEndoC1 * VLiv * PLiv1
+    IARap1 = CEndoC1 * VRap * PRap1
+    IASlw1 = CEndoC1 * VSlw * PSlw1
+  InitTot1 = IABrn1 + IAFat1 + IALiv1 + IARap1 + IASlw1
+
+! Initial Amounts of Acetone (mg) when dosed with acetone
+     IABld = CEndoC * VAlv
+     IABrn = CEndoC * VBrn * PBrn
+     IAFat = CEndoC * VFat * PFat
+     IALiv = CEndoC * VLiv * PLiv
+     IARap = CEndoC * VRap * PRap
+     IASlw = CEndoC * VSlw * PSlw
+   InitTot = IABld + IABrn + IAFat + IALiv + IARap + IASlw
+
+! Scaled Metabolism Parameters
+      VMax = VMaxC * (BW**0.75)
+        KF = KFC / (BW**0.25)
+     VMax1 = VMaxC1 * (BW**0.75)
+       KF1 = KFC1 / (BW**0.25)
+    REndo1 = REndoC1 * (BW**0.75)
+     REndo = REndoC * (BW**0.75)
+
+! Scaled Clearance Rates
+      ClUr = ClUrC * (BW**0.75)
+      kUrt = (min(kUrtC, QPC)) * (BW**0.75)
+
+! Scaled Doses
+      Dose = PDose * BW                ! Oral dose (mg)
+     Drink = (PDrink * BW) / 24.0      ! Drinking water dose (mg/hr)
+
+! Initialize Starting Values
+      CINT = CIntC
+        IV = 0.0
+    CIZone = 1.0
+    DayExp = 1.0
+     DDose = ICSFC * IVSFC        ! Initial dermal dose
+    PerEnd = 0.0
+    PerMix = 0.0
+  PAUCCBld = 0.0
+ PAUCCBld1 = 0.0
+
+END                ! End of Initial
+
+
+DYNAMIC
+
+DISCRETE DoseOn    ! Start dosing
+  INTERVAL DoseInt = 24.0         ! Interval to repeat dosing
+  SCHEDULE DoseOff AT T + TInf
+  SCHEDULE DoseOff2 AT T + TChng
+
+   IF (((T < TMax) && (DayExp <= DaysWk)) || CC)
+      CIZone = 1.0
+   END
+   
+   DayExp = DayExp + 1.0
+   
+   IF (DayExp > 7.0)  
+      DayExp = 0.5
+   END
+
+   IF (T <= TInf)
+      IF (IVDose > 0.0)
+         CINT = MIN(CIntC, (TInf/10.0))
+      END
+      
+      IV = (IVDose*BW) / TInf   ! Rate of intravenous dosing (mg/hr)
+   END
+
+  ASt = ASt + Dose
+END
+
+
+DISCRETE DoseOff
+  CINT = CIntC
+  IV = 0.0
+END
+
+DISCRETE DoseOff2
+  IF (~ CC) 
+     CIZone = 0.0
+  END
+END
+
+
+DISCRETE Calc      ! Calculate daily average AUC
+   INTERVAL CalcInt = 24.0
+
+   DAUCCBld = (AUCCBld - PAUCCBld) / (CalcInt/24.0)
+   DAUCCBld1 = (AUCCBld1 - PAUCCBld1) / (CalcInt/24.0)
+   DAUCTot = DAUCCBld + DAUCCBld1
+
+   IF (T > 0)
+       PAUCCBld = AUCCBld
+       PAUCCBld1 = AUCCBld1
+   END
+END      ! End of Calc
+
+
+DERIVATIVE
+     Hours = T
+   Minutes = T * 60.0
+      Days = T / 24.0
+
+! Amount in Inhaled Air
+      RACh = (Rats*((-QAlv*CInh) + (QAlv*CAlv) + RAMucX)) - (kLC*ACh)
+       ACh = INTEG(RACh, AI0)
+      CInh = (ACh / VCh) * CIZone
+        CP = (CInh * 24450.0) / MW
+
+! Amount in Mucous
+    RAMucI = kUrt * (CInh - (CMuc/PMuc))
+    RAMucX = kUrt * ((CMuc/PMuc) - CAlv)
+     RAMuc = RAMucI - RAMucX
+      AMuc = INTEG(RAMuc, 0.0)
+      CMuc = AMuc / VMuc
+
+! Amount in Arterial Blood (mg)
+     RABld = (QAlv*CInh) - RAMucI - (QAlv*CAlv) + (QC*(CVen-CArt))
+      ABld = INTEG(RABld, IABld)
+      CArt = ABld / VAlv
+      CAlv = CArt / PB
+   CAlvPPM = CAlv * (24450.0 / MW)
+   AUCCBld = INTEG(CArt, 0.0)
+
+! Amount Exhaled (mg)
+     RAExh = (QAlv * CAlv) + RAMucX
+      AExh = INTEG(RAExh, 0.0)
+
+! Amount of Isopropanol and Acetone Exhaled (mg)
+   AExhAll = AExh + AExh1
+
+! Concentration in End-Exhaled Air (mg/L)
+      CEnd = RAExh / QAlv
+   CEndPPM = CEnd * (24450.0 / MW)
+  IF (Conc > 0.0) 
+     PerEnd = (CEnd / ((Conc*MW)/24450.0)) * 100.0
+  END
+
+! Concentration in Mixed Exhaled Air (mg/L)
+      CMix = ((1-DS)*CEnd) + (DS*CInh)
+   CMixPPM = CMix * (24450.0 / MW)
+  IF (Conc > 0.0) 
+     PerMix = (CMix / ((Conc*MW)/24450.0)) * 100.0
+  END
+
+! Amount in Brain (mg)
+     RABrn = QBrn * (CArt - CVBrn)
+      ABrn = INTEG(RABrn, IABrn)
+      CBrn = ABrn / VBrn
+     CVBrn = CBrn / PBrn
+
+! Digestive Tract
+!  Amount Absorbed (mg)
+       RAO = (kAS * ASt) + (kAD * ADu)
+        AO = INTEG(RAO, 0.0)
+
+!  Amount Excreted (mg)
+     RAExc = kTD * ADu
+      AExc = INTEG(RAExc, 0.0)
+
+!  Amount in Duodenum (mg)
+      RADu = (kTSD * ASt) - (kAD * ADu) - (kTD * ADu)
+       ADu = INTEG(RADu, 0.0)
+
+!  Amount in Stomach (mg)
+      RASt = -((kAS * ASt) + (kTSD * ASt))
+       ASt = INTEG(RASt, 0.0)
+
+! Amount in Fat (mg)
+     RAFat = QFat * (CArt - CVFat)
+      AFat = INTEG(RAFat, IAFat)
+      CFat = AFat / VFat
+     CVFat = CFat / PFat
+
+! Amount in Liver (mg)
+     RALiv = (QLiv * (CArt - CVLiv)) + RAO + Drink + REndo - RAMetTot
+      ALiv = INTEG(RALiv, IALiv)
+      CLiv = ALiv / VLiv
+     CVLiv = CLiv / PLiv
+
+! Amount of Endogenous Acetone produced with acetone dosing
+     AEndo = INTEG(REndo, 0.0)
+
+! Amount Metabolised in Liver -- Saturable (mg)
+    RAMet1 = (VMax * CVLiv) / (KM + CVLiv)
+     AMet1 = INTEG(RAMet1, 0.0)
+
+! Amount Metabolised in Liver -- 1st Order (mg)
+    RAMet2 = KF * CVLiv * VLiv
+     AMet2 = INTEG(RAMet2, 0.0)
+
+! Total Amount Metabolised in Liver (mg)
+  RAMetTot = RAMet1 + RAMet2
+     AMetT = AMet1 + AMet2
+
+! Amount in Rapidly Perfused Tissue (mg)
+     RARap = QRap * (CArt - CVRap)
+      ARap = INTEG(RARap, IARap)
+      CRap = ARap / VRap
+     CVRap = CRap / PRap
+
+! Amount on Skin Surface (mg)
+   CSFZone = RSW(T < TChng, 1.0, 0.0)
+     RASFC = ((P * Area)/1000.0) * ((CSkn/PSknL) - CSFC)
+      ASFC = INTEG(RASFC, DDose)
+      CSFC = 1000.0 * ICSFC * CSFZone
+
+! Amount in Skin (mg)
+     RASkn = ((P * Area)/1000.0) * (CSFC - (CSkn/PSknL)) ...
+           + (QSkn * (CArt - CVSkn))
+      ASkn = INTEG(RASkn, 0.0)
+      CSkn = ASkn / VSkn
+     CVSkn = CSkn / PSknB
+
+! Amount in Slowly Perfused Tissue (mg)
+     RASlw = QSlw * (CArt - CVSlw)
+      ASlw = INTEG(RASlw, IASlw)
+      CSlw = ASlw / VSlw
+     CVSlw = CSlw / PSlw
+
+! Concentration in Mixed Venous Blood (mg/L)
+      CVen = (QBrn*CVBrn + QFat*CVFat + QLiv*CVLiv + QRap*CVRap ...
+           + QSkn*CVSkn + QSlw*CVSlw + IV - RAUrn) / QC
+
+! Amount in Urine (mg)
+     RAUrn = ClUr * CArt
+      AUrn = INTEG(RAUrn, 0.0)
+
+
+! ----------------- ACETONE PBPK MODEL-------------------------------
+! Amount in Arterial Blood (mg)
+     CArt1 = (QC * CVen1) / (QAlv/PB1 + QC)
+     CAlv1 = CArt1 / PB1
+  AUCCBld1 = INTEG(CArt1, 0.0)
+
+! Amount Exhaled (mg)
+    RAExh1 = QAlv * CAlv1
+     AExh1 = INTEG(RAExh1, 0.0)
+  CAlvPPM1 = CAlv1 * (24450.0 / MW1)
+
+! Amount in Brain (mg)
+    RABrn1 = QBrn * (CArt1 - CVBrn1)
+     ABrn1 = INTEG(RABrn1, IABrn1)
+     CBrn1 = ABrn1 / VBrn
+    CVBrn1 = CBrn1 / PBrn1
+
+! Amount in Fat (mg)
+    RAFat1 = QFat * (CArt1 - CVFat1)
+     AFat1 = INTEG(RAFat1, IAFat1)
+     CFat1 = AFat1 / VFat
+    CVFat1 = CFat1 / PFat1
+
+! Amount in Liver (mg)
+    RALiv1 = (QLiv * (CArt1 - CVLiv1)) + (Stoch * RAMetTot) ...
+           + REndo1 - RAMetTot1
+     ALiv1 = INTEG(RALiv1, IALiv1)
+     CLiv1 = ALiv1 / VLiv
+    CVLiv1 = CLiv1 / PLiv1
+
+! Amount of Endogenous Acetone produced with isopropanol dosing
+    AEndo1 = INTEG(REndo1, 0.0)
+
+! Amount Metabolised in Liver -- Saturable (mg)
+   RAMetM1 = (VMax1 * CVLiv1) / (KM1 + CVLiv1)
+    AMetM1 = INTEG(RAMetM1, 0.0)
+
+! Amount Metabolised in Liver -- 1st Order (mg)
+   RAMetM2 = KF1 * CVLiv1 * VLiv
+    AMetM2 = INTEG(RAMetM2, 0.0)
+
+! Total Amount Metabolised in Liver (mg)
+ RAMetTot1 = RAMetM1 + RAMetM2
+    AMetT1 = AMetM1 + AMetM2
+
+! Amount in Rapidly Perfused Tissue (mg)
+    RARap1 = QRap * (CArt1 - CVRap1)
+     ARap1 = INTEG(RARap1, IARap1)
+     CRap1 = ARap1 / VRap
+    CVRap1 = CRap1 / PRap1
+
+! Amount in Slowly Perfused Tissue (mg)
+    RASlw1 = (QSlw+QSkn) * (CArt1 - CVSlw1)
+     ASlw1 = INTEG(RASlw1, IASlw1)
+     CSlw1 = ASlw1 / VSlw
+    CVSlw1 = CSlw1 / PSlw1
+
+! Concentration in Mixed Venous Blood (mg/L)
+     CVen1 = (QBrn*CVBrn1 + QFat*CVFat1 + QLiv*CVLiv1 + QRap*CVRap1 ...
+           + (QSlw+QSkn)*CVSlw1) / QC
+
+
+! ----------------- CHECK MASS BALANCE ------------------------------
+  rdosein1 = QAlv*CInh
+  dosein1  = INTEG(rdosein1, 0.0)
+   dosein2 = INTEG(IV, 0.0)
+     TDose = dosein1 + dosein2 + AO + (DDose - ASFC)
+    Isopro = AMuc + ABld + ABrn + AFat + ALiv + ARap + ASkn + ASlw ...
+           + AExh + AUrn + AMetT - InitTot - AEndo
+   Acetone = ABrn1 + AFat1 + ALiv1 + ARap1 + ASlw1 + AExh1 + AMetT1 ...
+           - InitTot1 - AEndo1
+   MassBal = TDose - Isopro
+    MetBal = (AMetT * Stoch) - Acetone
+
+
+TERMT(T >= TStop, 'Simulation Finished')
+
+END                ! End of Derivative
+END                ! End of Dynamic
+END                ! End of Model
+
