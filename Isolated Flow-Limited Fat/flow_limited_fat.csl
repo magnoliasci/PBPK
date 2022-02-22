@@ -1,0 +1,62 @@
+MODEL flow_limited_fat
+INITIAL 
+ 
+!Physiological Parameters ***********************************
+CONSTANT      BW = 0.25   !Body weight (kg)
+CONSTANT     QCC = 15.0   !Cardiac output (L/hr-1kg)
+CONSTANT     VFC = 0.10   !Fraction fat tissue
+CONSTANT     QFC = 0.06   !Fractional blood flow to fat
+ 
+ 
+!Chemical specific parameters ********************************
+ 
+CONSTANT      PF = 350.0  !Fat/blood partition coefficient
+ 
+!Parameters for simulated fat perfusion experiment**********************
+ 
+CONSTANT     CIN = 1.0   !Arterial blood concentration (mg/l)
+CONSTANT   TSTOP = 24.0  !Length of experiment (hrs)
+CONSTANT   TCHNG = 12.0  !Time at which input is zero (hrs)
+CINTERVAL   CINT = 0.1	 !Communication interval
+ 
+!Scaled variables
+ 
+      QC = QCC*BW**0.7   !Cardiac output - L/hr
+      QF = QFC*QC        !Fat blood flow - L/hr
+      VF = VFC*BW        !Volume of fat - L
+ 
+!Set concentration to original value
+ 
+      CIN0 = CIN         !Permit concentration reset in terminal
+ 
+END     !End of initial
+ 
+DYNAMIC 
+ 
+DERIVATIVE 
+ 
+    IF(T >= TCHNG)
+        CIN0 = 0.0
+    END
+
+      !AF = Amount in fat tissue (mg)
+      RAF = QF*(CIN0-CVF) 
+       AF = INTEG(RAF,0.0)
+       CF = AF/VF
+      CVF = CF/PF
+ 
+ 
+!Section to calculate mass-balance
+ 
+   !TOTAL should equal TMASS 
+   RTOTAL = QF*CIN0
+    TOTAL = INTEG(RTOTAL, 0.0)		!Total mass perfusing tissue, mg
+     ROUT = QF*CVF
+      OUT = INTEG(ROUT, 0.0)		!Total mass exiting venous blood, mg
+    TMASS = OUT+AF			        !Total mass 
+ 
+  TERMT(T >= TSTOP) 
+ 
+END       !End of derivative
+END       !End of dynamic
+END       !End of model

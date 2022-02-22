@@ -1,0 +1,1 @@
+{"ymin":0.0,"xmin":0.0,"ylabel":"","variables":[{"name":"cf"}],"xautorange":true,"logx":false,"logy":false,"yautorange":true,"title":"","ymax":100000.0,"xmax":100000.0,"xlabel":"","sliders":[{"maxval":700.0,"minval":0.0,"name":"pf","position":350.0,"value":350.0,"logscale":false}],"parameters":[{"name":"pf"}]}

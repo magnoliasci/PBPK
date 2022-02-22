@@ -1,0 +1,61 @@
+MODEL liver ! Isolated perfused liver 
+ 
+INITIAL 
+ 
+  !Physiological parameters!
+  CONSTANT   BW = 0.25     !Body weight - kg!
+  CONSTANT  QCC = 15.0     !Cardiac output -l/hr-kg!
+  CONSTANT  VLC = 0.03     !Proportion body as liver tissue!
+  CONSTANT  QLC = 0.20     !Liver blood flow - portion of total!
+ 
+  !Chemical-specific parameters!
+  CONSTANT    PL = 5.0     !Liver partition coefficient!
+  CONSTANT VMAXC = 5.0     !Maximum metabolic rate - mg/hr-kg!
+  CONSTANT    KM =  0.5    !Michaelis constant - mg/l!
+ 
+  !Parameters for simulated fat perfusion experiment!
+  CONSTANT    CIN = 1.0    !Arterial blood concentration - mg/l!
+  CONSTANT  TSTOP = 6.0    !Duration of perfusion - hr!   
+  CONSTANT  POINTS = 100.0 !Number of times data are logged!
+  CINT  = TSTOP/POINTS     !Communication interval!
+ 
+  !Scaled Variables!
+  QC = QCC*BW**0.7         !Cardiac output - l/hr!
+  QL = QLC*QC              !Liver blood flow - l/hr!
+  VL = VLC*BW              !Liver tissue volume - l!
+  VMAX = VMAXC*BW**0.7     !Metabolic rate - mg/hr!
+ 
+END     !End of initial! 
+ 
+DYNAMIC 
+ 
+  DERIVATIVE  
+ 
+    !AL = Amount in liver (mg)!
+    RAL = QL*(CIN-CVL)-RAM     ! - mg/hr!
+    AL  = INTEG(RAL,0.0)       ! - mg   !
+    CL  = AL/VL                ! - mg/l !
+    CVL = CL/PL                ! - mg/l !
+ 
+    !AM = Amount metabolized - mg!
+    RAM = (VMAXC*CVL)/(KM+CVL) ! - mg/hr!
+    AM  = INTEG(RAM,0.0)       ! - mg   !
+ 
+    !HE = Hepatic extraction   !
+    HE  = (CIN-CVL)/CIN        !  - dimensionless!
+ 
+    !Section to calculate mass-balance!     
+ 
+    !TOTAL should equal TMASS! 
+    RTOT  = QL*CIN
+    TOTAL = INTEG(RTOT,0.0)   !Total mass perfusing tissue!
+    ROUT  = QL*CL/PL
+    OUT   = INTEG(ROUT,0.0) !Total mass exiting in venous blood!
+    TMASS = OUT+AL+RAM          !Total mass in liver!
+ 
+    TERMT(T >= TSTOP , 'simulation stopped on time') 
+ 
+  END        !End of derivative!
+ 
+END        !End of dynamic! 
+END        !End of model!
