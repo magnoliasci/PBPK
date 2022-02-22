@@ -1,0 +1,172 @@
+! PBPK Model for Lapatinib in Mice 
+! Based on acslX model published in: https://pubmed.ncbi.nlm.nih.gov/23315145/
+! and ported to Magnolia
+model lapatinib_mouse
+
+initial
+	
+!Organ blood flow parameters
+	CO = 0.275*(BW**0.75)*60 !cardiac output; UNITS: L/hr; from Brown (9249929) page 440
+  	constant FQ_liv = 0.02 !flow to liver; UNITS: fraction CO; liver hepatic artery from Brown (9249929) page 438 
+	constant FQ_int = 0.141 !flow to intestine; UNITS: fraction CO; liver portal vein from Brown (9249929) page 438
+	constant FQ_kid = 0.091 !flow to kidneys; UNITS: fraction CO; from Brown (9249929) page 438
+	constant FQ_brn = 0.033 !flow to brain; UNITS: fraction CO; from Brown (9249929) page 438 
+	constant FQ_hrt = 0.066 !flow to heart; UNITS: fraction CO; from Brown (9249929) page 438 
+	constant FQ_lng = 1.0 !flow to lungs; UNITS: fraction CO; from Brown (9249929) page 445
+
+!Organ volume parameters 
+	constant BW = 0.020 !bodyweight in kg
+	constant FV_liv = 0.0549 !volume of liver; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_int = 0.0422 !volume of intestinal tract; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_kid = 0.0167 !volume of kidneys; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_brn = 0.0165 !volume of brain; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_hrt = 0.0050 !volume of heart; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_lng = 0.0073 !volume of lungs; UNITS: fraction BW; from Brown (9249929) page 416
+	constant FV_bld = 0.0490 !volume of blood; UNITS: fraction BW: from Brown (9249929) page 435	
+	
+!Partition coefficients  
+  	constant P_liv = 12 !liver:plasma partition coefficient; from parameter optimization
+  	constant P_int = 531 !intestine:plasma partition coefficient; from parameter optimization
+  	constant P_kid = 1064 !kidney:plasma partition coefficient; from parameter optimization
+  	constant P_brn = 10 !brain:plasma partition coefficient; from parameter optimization
+  	constant P_hrt = 215 !heart:plasma partition coefficient; from parameter optimization  
+  	constant P_lng = 1643 !lungs:plasma partition coefficient; from parameter optimization
+  	constant P_sp =  65 !slowly perfused tissues:plasma partition coefficient; average of muscle and adipose; from parameter optimization
+   
+!Dosing parameters
+  	constant PODose = 60 !oral dose; UNITS: mg/kg; oral gavage
+	constant MW = 581.06 !UNITS: g/mol
+	DDose = (PODose*1000000*BW)/MW !delivered dose; UNITS: nmol; scaled to bodyweight
+	constant fu = 0.01 !fraction unbound
+
+!Timing Commands
+	constant TSTOP = 16 !length of experiment; UNITS: hr
+  	constant POINTS = 64 !number of points   
+  	CINT = TSTOP/POINTS !interval of data collection (every 15 min); UNITS: hr
+  
+!Mass balance parameters 
+	FQ_sp = 1-FQ_liv-FQ_int-FQ_kid-FQ_brn-FQ_hrt !flow to slowly perfused tissue; UNITS: fraction CO
+	FV_sp = 1-FV_liv-FV_int-FV_kid-FV_brn-FV_hrt-FV_lng-FV_bld !volume slowly perfused tissue; UNITS: fraction BW
+
+!Scaled blood flow parameters in L/hr
+	Q_liv = FQ_liv*CO
+	Q_int = FQ_int*CO
+	Q_kid = FQ_kid*CO
+	Q_brn = FQ_brn*CO
+	Q_hrt = FQ_hrt*CO
+	Q_sp = FQ_sp*CO
+	Q_lng = FQ_lng*CO
+
+!Scaled volume parameters in L
+	V_liv = FV_liv*BW
+	V_int = FV_int*BW
+	V_kid = FV_kid*BW
+	V_brn = FV_brn*BW
+	V_hrt = FV_hrt*BW
+	V_lng = FV_lng*BW
+	V_sp = FV_sp*BW
+	V_bld = FV_bld*BW
+	V_pl = V_bld/2
+
+!Mass balance checks
+	FQ_total = FQ_liv+FQ_int+FQ_kid+FQ_brn+FQ_hrt+FQ_sp !should equal 1
+	FV_total = FV_liv+FV_int+FV_kid+FV_brn+FV_hrt+FV_lng+FV_bld+FV_sp !should equal 1	
+	Q_total = Q_liv+Q_int+Q_kid+Q_brn+Q_hrt+Q_sp !should equal CO; UNITS: L/hr
+	V_total = V_liv+V_int+V_kid+V_brn+V_hrt+V_lng+V_sp+V_bld !should equal BW; UNITS: kg (L)
+	
+!First-order absorption rate constant from lumen
+	constant ka = 0.237 !UNITS: 1/hr; from parameter optimization 
+
+!First-order intestinal metabolism
+	k_imet = k_lmet*0.02
+
+!First-order liver metabolism
+	constant k_lmet = 127 !UNITS: 1/hr; from parameter optimization
+
+end
+
+derivative
+
+!Brain concentration 
+  	dA_brn = Q_brn*(C_art-C_v_brn) !Rate of change of amount in brain; UNITS: nmol/hr 
+	C_v_brn = C_brn/(P_brn*fu) !Concentration in brain venous blood; UNITS: nmol/L 	
+	A_brn = integ(dA_brn,0.0) !Amount in brain; UNITS: nmol
+	C_brn = A_brn/V_brn !Concentration in brain; UNITS: nmol/L
+	AUC_brn = integ(C_brn,0.0) !AUC in the brain; UNITS: nmol/L * hr
+
+!Heart concentration
+	dA_hrt = Q_hrt*(C_art-C_v_hrt) !Rate of change of amount in heart; UNITS: nmol/hr
+	C_v_hrt = C_hrt/(P_hrt*fu) !Concentration in heart venous blood; UNITS: nmol/L
+	A_hrt = integ(dA_hrt,0.0) !Amount in heart; UNITS: nmol
+	C_hrt = A_hrt/V_hrt !Concentration in heart; UNITS: nmol/L
+	AUC_hrt = integ(C_hrt,0.0) !AUC in heart; UNITS: nmol/L * hr
+
+!Lung concentration
+	dA_lng = Q_lng*(C_ven-C_v_lng) !Rate of change in lungs; UNITS: nmol/hr
+	C_v_lng = C_lng/(P_lng*fu) !Concentration in lungs venous blood; UNITS: nmol/L
+	A_lng = integ(dA_lng,0.0) !Amount in lungs; UNITS: nmol
+	C_lng = A_lng/V_lng !Concentration in lungs; UNITS: nmol/L
+	AUC_lng = integ(C_lng,0.0) !AUC in lungs; UNITS: nmol/L * hr
+
+!Slowly perfused tissue concentration
+	dA_sp = Q_sp*(C_art-C_v_sp) !Rate of change in slowly perfused tissues; UNITS: nmol/hr
+	C_v_sp = C_sp/(P_sp*fu) !Concentration in slowly perfused tissue venous blood; UNITS: nmol/L
+	A_sp = integ(dA_sp,0.0) !Amount in slowly perfused tissues; UNITS: nmol
+	C_sp = A_sp/V_sp !Concentration in slowly perfused tissues: UNITS: nmol/L
+	AUC_sp = integ(C_sp,0.0) !AUC in slowly perfused tissues; UNITS: nmol/L * hr
+
+!Kidney concentration
+	dA_kid = Q_kid*(C_art-C_v_kid) !Rate of change in kidney; UNITS: nmol/hr
+	C_v_kid = C_kid/(P_kid*fu) !Concentration in kidney venous blood; UNITS: nmol/L
+	A_kid = integ(dA_kid,0.0) !Amount in kidney; UNITS: nmol
+	C_kid = A_kid/V_kid !Concentration in kidney: UNITS: nmol/L
+	AUC_kid = integ(C_kid,0.0) !AUC in kidney; UNITS: nmol/L * hr
+
+!Absorption from lumen (site of drug deposit via oral gavage) 
+	dA_lumen = -ka*A_lumen !Rate of change of drug in lumen; UNITS: nmol/hr
+	A_lumen = integ(dA_lumen,DDose) !Amount of drug in lumen; UNITS: nmol
+
+!Intestine metabolism
+	dA_imet = k_imet*C_v_int*V_int !Rate of intestinal metabolism; UNITS: nmol/hr
+	A_imet = integ(dA_imet,0.0) !Amount metabolized by intestine; UNITS: nmol 	
+
+!Intestine concentration
+	dA_int = Q_int*(C_art-C_v_int)+ka*A_lumen-dA_imet !Rate of change in intestine; UNITS: nmol/hr
+	C_v_int = C_int/(P_int*fu) !Concentration in intestine venous blood; UNITS: nmol/L
+	A_int = integ(dA_int,0.0) !Amount in intestine; UNITS: nmol
+	C_int = A_int/V_int !Concentration in intestine: UNITS: nmol/L
+	AUC_int = integ(C_int,0.0) !AUC in intestine; UNITS: nmol/L * hr
+
+!Liver metabolism
+	dA_lmet = k_lmet*C_v_liv*V_liv !Rate of liver metabolism; UNITS: nmol/hr
+	A_lmet = integ(dA_lmet,0.0) !Amount metabolized by liver; UNITS: nmol	
+
+!Liver concentration
+	dA_liv = (Q_liv*C_art)+(Q_int*C_v_int)-((Q_liv+Q_int)*C_v_liv)-dA_lmet !Rate of change in liver; UNITS: nmol/hr 
+	C_v_liv = C_liv/P_liv !Concentration in liver venous blood; UNITS: nmol/L
+	A_liv = integ(dA_liv,0.0) !Amount in liver; UNITS: nmol
+	C_liv = A_liv/V_liv !Concentration in liver: UNITS: nmol/L
+	AUC_liv = integ(C_liv,0.0) !AUC in liver; UNITS: nmol/L * hr
+
+!Venous and arterial blood and plasma concentrations
+	dA_ven = (Q_brn*C_v_brn)+(Q_hrt*C_v_hrt)+(Q_sp*C_v_sp)+(Q_kid*C_v_kid)+((Q_liv+Q_int)*C_v_liv)+(Q_lng*C_v_lng)-(Q_brn*C_art)-(Q_hrt*C_art)-(Q_sp*C_art)-(Q_kid*C_art)-(Q_int*C_art)-(Q_liv*C_art)-(Q_lng*C_ven) !Rate of change in venous blood; UNITS: nmol/hr
+  	A_ven = integ(dA_ven,0.0) !Amount in venous blood; UNITS: nmol
+	C_ven = A_ven/V_bld !Concentration in venous blood; UNITS: nmol/L	
+	C_art = C_ven !Concentration in arterial blood; UNITS: nmol/L
+	C_pl = A_ven/V_pl !Concentration in plasma; UNITS: nmol/L
+	AUC_pl = integ(C_pl,0.0) !AUC in plasma; UNITS: nmol/L * hr
+	
+!Mass check 
+  TMass = A_brn+A_hrt+A_lng+A_sp+A_kid+A_int+A_liv+A_ven+A_imet+A_lmet+A_lumen !should equal DDose
+	Bal = DDose-TMass !should equal zero
+ 	P_exc = (A_lumen/TMass)*100 !Percent excreted in feces
+	P_lmet = (A_lmet/TMass)*100 !Percent metabolized by liver	
+	P_imet = (A_imet/TMass)*100 !Percent metabolized by intestine
+	P_met = ((A_lmet+A_imet)/TMass)*100 !Total percent metabolized
+
+  termt(t >= tstop, 'time limit')
+
+end
+
+end 
+
