@@ -1,0 +1,2234 @@
+!
+! Whole-body PBPK model for Antibody-Drug Conjugates
+! Parameterized for T-DM1 (Trastuzumab emtansine, Kadcyla)
+!
+! Original model published in:
+!     Antari Khot, Jay Tibbitts, Dan Rock, and Dhaval K. Shah
+!     Development of a Translational Physiologically Based Pharmacokinetic Model 
+!         for Antibody-Drug Conjugates: a Case Study with T-DM1 
+!     AAPS J. 2017 November; 19(6): 1715–1734. doi:10.1208/s12248-017-0131-3.
+!
+! Units: nanomoles, L, hours
+!
+model Khot2017
+
+initial
+
+    ! Simulation control parameters
+    constant tstop = 720.0  ! hours
+    cinterval cint = 0.5    ! hours
+
+    ! Bodyweight
+    constant BW = 0.280   ! Kg, rat
+    
+    ! Drug-specific parameters
+    constant MW = 145531.5  ! Daltons
+    
+    constant Kdeg    = 42.9
+    constant Kdec    = 0.0049
+    constant Kint_Ag = 0.1
+    constant Kon     = 0.08     
+    constant Koff    = 28.
+    constant Kon_Ag  = 0.37     
+    constant Koff_Ag = 0.014
+    constant Kon_tn  = 0.03     
+    constant Koff_tn = 27.9
+    constant Kin_UD  = 0.403
+    constant Kout_UD = 0.046
+    constant eps_ADC = 0.25
+    constant eps_UD  = 0.44
+    constant Rcap    = 8e-6   ! convert to cm?
+    constant Rkrogh  = 75e-6  ! convert to cm?
+    constant D_ADC   = 0.92e-7  ! units?
+    constant D_UD    = 1.04     ! units?
+    constant P_ADC   = 13.9e-6  ! units?
+    constant P_UD    = 0.087e-3 ! units?
+    constant fup     = 0.03
+    
+    constant DAR0   = 3.5
+    
+    constant FR     = 0.715
+
+    constant CLhepatic = 1.67  ! scaled back from human val
+    
+    constant Rtumor = 1.0e-2  ! units?
+    constant Vtumor = 3.14e-6 ! vol of sphere
+    
+    ! Dosing parameters
+    constant ivdosempk = 13.0 ! mg/Kg
+    ivdose = BW*1e6*ivdosempk/MW ! convert to nmoles
+    
+    constant numdoses = 1.0
+    dosenum = 1.0
+    
+    ! Physiological parameters
+    constant Antigen  = 5200. ! convert to nmoles/mL?
+    constant Tubulin  = 65.   ! convert to nmoles/mL?
+    constant FcRn0    = 49800. ! convert t0 nmoles/mL?
+    
+    ! Total tissue volumne (L)
+    constant Vheart      = 1.02e-3
+    constant Vlung       = 1.40e-3
+    constant Vmuscle     = 122e-3
+    constant Vskin       = 49.9e-3
+    constant Vfat        = 33.1e-3
+    constant Vmarrow     = 21.0e-3
+    constant Vbrain      = 2.28e-3
+    constant Vkidney     = 2.41e-3
+    constant Vliver      = 15.7e-3
+    constant Vsi         = 4.99e-3
+    constant Vli         = 2.87e-3
+    constant Vpancreas   = 1.00e-3
+    constant Vthymus     = 0.0960e-3
+    constant Vspleen     = 2.77e-3
+    constant Vlymphnodes = 1.15e-3
+    constant Vother      = 6.09e-3
+    constant Vplasma     = 9.06e-3
+    constant Vbc         = 7.41e-3
+    
+    ! Plasma volume (L)
+    constant Vheart_plas      = 0.0394e-3
+    constant Vlung_plas       = 0.231e-3
+    constant Vmuscle_plas     = 2.68e-3
+    constant Vskin_plas       = 1.87e-3
+    constant Vfat_plas        = 0.364e-3
+    constant Vmarrow_plas     = 0.462e-3
+    constant Vbrain_plas      = 0.0502e-3
+    constant Vkidney_plas     = 0.132e-3
+    constant Vliver_plas      = 1.34e-3
+    constant Vsi_plas         = 0.0795e-3
+    constant Vli_plas         = 0.0458e-3
+    constant Vpancreas_plas   = 0.0547e-3
+    constant Vthymus_plas     = 0.00528e-3
+    constant Vspleen_plas     = 0.335e-3
+    constant Vother_plas      = 0.256e-3
+
+    ! Blood cell volume (L)
+    constant Vheart_bc      = 0.0323e-3
+    constant Vlung_bc       = 0.189e-3
+    constant Vmuscle_bc     = 2.19e-3
+    constant Vskin_bc       = 1.53e-3
+    constant Vfat_bc        = 0.298e-3
+    constant Vmarrow_bc     = 0.378e-3
+    constant Vbrain_bc      = 0.0410e-3
+    constant Vkidney_bc     = 0.108e-3
+    constant Vliver_bc      = 1.10e-3
+    constant Vsi_bc         = 0.0651e-3
+    constant Vli_bc         = 0.0375e-3
+    constant Vpancreas_bc   = 0.0448e-3
+    constant Vthymus_bc     = 0.00432e-3
+    constant Vspleen_bc     = 0.274e-3
+    constant Vother_bc      = 0.209e-3
+    
+    ! Interstitial volume (L)
+    constant Vheart_int      = 0.146e-3
+    constant Vlung_int       = 0.263e-3
+    constant Vmuscle_int     = 15.8e-3
+    constant Vskin_int       = 16.5e-3
+    constant Vfat_int        = 5.63e-3
+    constant Vmarrow_int     = 3.90e-3
+    constant Vbrain_int      = 0.410e-3
+    constant Vkidney_int     = 0.361e-3
+    constant Vliver_int      = 2.56e-3
+    constant Vsi_int         = 0.867e-3
+    constant Vli_int         = 0.500e-3
+    constant Vpancreas_int   = 0.173e-3
+    constant Vthymus_int     = 0.0163e-3
+    constant Vspleen_int     = 0.554e-3
+    constant Vother_int      = 1.04e-3
+    
+    ! Endosomal volume (mL)
+    constant Vheart_endo      = 0.00512e-3
+    constant Vlung_endo       = 0.00700e-3
+    constant Vmuscle_endo     = 0.608e-3
+    constant Vskin_endo       = 0.249e-3
+    constant Vfat_endo        = 0.166e-3
+    constant Vmarrow_endo     = 0.105e-3
+    constant Vbrain_endo      = 0.0114e-3
+    constant Vkidney_endo     = 0.0120e-3
+    constant Vliver_endo      = 0.0787e-3
+    constant Vsi_endo         = 0.0249e-3
+    constant Vli_endo         = 0.0144e-3
+    constant Vpancreas_endo   = 0.00498e-3
+    constant Vthymus_endo     = 0.000480e-3
+    constant Vspleen_endo     = 0.0138e-3
+    constant Vother_endo      = 0.0305e-3
+    
+    ! Cellular volume (mL)
+    constant Vheart_cell      = 0.801e-3
+    constant Vlung_cell       = 0.710e-3
+    constant Vmuscle_cell     = 100.e-3
+    constant Vskin_cell       = 29.8e-3
+    constant Vfat_cell        = 26.7e-3
+    constant Vmarrow_cell     = 16.1e-3
+    constant Vbrain_cell      = 1.77e-3
+    constant Vkidney_cell     = 1.79e-3
+    constant Vliver_cell      = 10.7e-3
+    constant Vsi_cell         = 3.95e-3
+    constant Vli_cell         = 2.28e-3
+    constant Vpancreas_cell   = 0.717e-3
+    constant Vthymus_cell     = 0.0696e-3
+    constant Vspleen_cell     = 1.59e-3
+    constant Vother_cell      = 4.55e-3
+    constant Vlymphnodes_cell = 1.15e-3
+    
+    ! Plasma flow (L/h)
+    constant Qheart_plas      = 151.e-3
+    constant Qlung_plas       = 2928.4e-3 ! was 2945., corrected for mass balance and excluded lymph
+    constant Qmuscle_plas     = 925.e-3
+    constant Qskin_plas       = 200.e-3
+    constant Qfat_plas        = 224.e-3
+    constant Qmarrow_plas     = 61.4e-3
+    constant Qbrain_plas      = 65.3e-3
+    constant Qkidney_plas     = 365.e-3
+    constant Qliver_plas      = 21.1e-3
+    constant Qsi_plas         = 398.e-3
+    constant Qli_plas         = 158.e-3
+    constant Qpancreas_plas   = 63.4e-3
+    constant Qthymus_plas     = 12.2e-3
+    constant Qspleen_plas     = 179.e-3
+    constant Qlymphnodes_plas = 16.8e-3
+    constant Qother_plas      = 105.e-3
+
+    ! Blood cell flow (L/h)
+    constant Qheart_bc      = 124.e-3
+    constant Qlung_bc       = 2395.4e-3 ! was 2409., corrected for mass balance and excluded lymph
+    constant Qmuscle_bc     = 757.e-3
+    constant Qskin_bc       = 163.e-3
+    constant Qfat_bc        = 184.e-3
+    constant Qmarrow_bc     = 50.2e-3
+    constant Qbrain_bc      = 53.5e-3
+    constant Qkidney_bc     = 298.e-3
+    constant Qliver_bc      = 17.3e-3
+    constant Qsi_bc         = 325.e-3
+    constant Qli_bc         = 130.e-3
+    constant Qpancreas_bc   = 51.8e-3
+    constant Qthymus_bc     = 10.0e-3
+    constant Qspleen_bc     = 146.e-3
+    constant Qlymphnodes_bc = 13.8e-3
+    constant Qother_bc      = 85.6e-3
+
+    ! Lymph flow (L/h)
+    constant RplasTolymph = 500.0
+    Qheart_lymph      = Qheart_plas/RplasTolymph
+    Qlung_lymph       = Qlung_plas/RplasTolymph
+    Qmuscle_lymph     = Qmuscle_plas/RplasTolymph
+    Qskin_lymph       = Qskin_plas/RplasTolymph
+    Qfat_lymph        = Qfat_plas/RplasTolymph
+    Qmarrow_lymph     = Qmarrow_plas/RplasTolymph
+    Qbrain_lymph      = Qbrain_plas/RplasTolymph
+    Qkidney_lymph     = Qkidney_plas/RplasTolymph
+    Qliver_lymph      = Qliver_plas/RplasTolymph
+    Qsi_lymph         = Qsi_plas/RplasTolymph
+    Qli_lymph         = Qli_plas/RplasTolymph
+    Qpancreas_lymph   = Qpancreas_plas/RplasTolymph
+    Qthymus_lymph     = Qthymus_plas/RplasTolymph
+    Qspleen_lymph     = Qspleen_plas/RplasTolymph
+    Qother_lymph      = Qother_plas/RplasTolymph
+
+    Qlymphnodes_lymph = Qlymphnodes_plas !!!/RplasTolymph
+
+    ! Pinocytosis/exocytosis uptake clearances (L/h)
+    constant CLup   = 36.6e-3 ! normalized to endosomal volume
+    CLup_heart      = CLup*Vheart_endo
+    CLup_lung       = CLup*Vlung_endo
+    CLup_muscle     = CLup*Vmuscle_endo
+    CLup_skin       = CLup*Vskin_endo
+    CLup_fat        = CLup*Vfat_endo
+    CLup_marrow     = CLup*Vmarrow_endo
+    CLup_brain      = CLup*Vbrain_endo
+    CLup_kidney     = CLup*Vkidney_endo
+    CLup_liver      = CLup*Vliver_endo
+    CLup_si         = CLup*Vsi_endo
+    CLup_li         = CLup*Vli_endo
+    CLup_pancreas   = CLup*Vpancreas_endo
+    CLup_thymus     = CLup*Vthymus_endo
+    CLup_spleen     = CLup*Vspleen_endo
+    CLup_other      = CLup*Vother_endo
+
+    ! Permeability surface areas (L/h)
+    constant PSheart      = 0.14
+    constant PSlung       = 0.52
+    constant PSmuscle     = 1.6
+    constant PSskin       = 0.19
+    constant PSfat        = 0.11
+    constant PSmarrow     = 0.015
+    constant PSbrain      = 0.003
+    constant PSkidney     = 0.63
+    constant PSliver      = 12.4
+    constant PSsi         = 0.33
+    constant PSli         = 0.18   
+    constant PSpancreas   = 63.4  ! = Qpancreas_plas
+    constant PSthymus     = 0.0007
+    constant PSspleen     = 0.26
+    constant PSother      = 0.10
+    
+    !!! The default value is causing model stability problems
+    constant PSbc         = 0.0 !!!294.5 ! = Qplasma*100
+    
+    ! Partition coefficients
+    constant Kpheart      = 368.9
+    constant Kplung       = 1043.7
+    constant Kpmuscle     = 544.5
+    constant Kpskin       = 279.3
+    constant Kpfat        = 219.0
+    constant Kpmarrow     = 2.1
+    constant Kpbrain      = 20.9
+    constant Kpkidney     = 2550.9
+    constant Kpliver      = 1889.2
+    constant Kpsi         = 782.6
+    constant Kpli         = 723.9
+    constant Kppancreas   = 1.00
+    constant Kpthymus     = 630.5
+    constant Kpspleen     = 1330.4
+    constant Kpother      = 479.8
+    constant Kpbc         = 106.9
+    
+    ! Reflection coefficients (interstitial space)
+    constant sigISheart      = 0.2
+    constant sigISlung       = 0.2
+    constant sigISmuscle     = 0.2
+    constant sigISskin       = 0.2
+    constant sigISfat        = 0.2
+    constant sigISmarrow     = 0.2
+    constant sigISbrain      = 0.2
+    constant sigISkidney     = 0.2
+    constant sigISliver      = 0.2
+    constant sigISsi         = 0.2
+    constant sigISli         = 0.2
+    constant sigISpancreas   = 0.2
+    constant sigISthymus     = 0.2
+    constant sigISspleen     = 0.2
+    constant sigISother      = 0.2
+
+    ! Reflection coefficients (vascular space)
+    constant sigVheart      = 0.95
+    constant sigVlung       = 0.95
+    constant sigVmuscle     = 0.95
+    constant sigVskin       = 0.95
+    constant sigVfat        = 0.95
+    constant sigVmarrow     = 0.85
+    constant sigVbrain      = 0.99
+    constant sigVkidney     = 0.9
+    constant sigVliver      = 0.85
+    constant sigVsi         = 0.9
+    constant sigVli         = 0.95
+    constant sigVpancreas   = 0.9
+    constant sigVthymus     = 0.9
+    constant sigVspleen     = 0.85
+    constant sigVother      = 0.95
+
+    constant G = 100.0
+    
+    Aheart_FcRn0    = Vheart_endo*FcRn0
+    Alung_FcRn0     = Vlung_endo*FcRn0
+    Amuscle_FcRn0   = Vmuscle_endo*FcRn0
+    Askin_FcRn0     = Vskin_endo*FcRn0
+    Afat_FcRn0      = Vfat_endo*FcRn0
+    Amarrow_FcRn0   = Vmarrow_endo*FcRn0
+    Abrain_FcRn0    = Vbrain_endo*FcRn0
+    Akidney_FcRn0   = Vkidney_endo*FcRn0
+    Aliver_FcRn0    = Vliver_endo*FcRn0
+    Asi_FcRn0       = Vsi_endo*FcRn0
+    Ali_FcRn0       = Vli_endo*FcRn0
+    Apancreas_FcRn0 = Vpancreas_endo*FcRn0
+    Athymus_FcRn0   = Vthymus_endo*FcRn0
+    Aspleen_FcRn0   = Vspleen_endo*FcRn0
+    Aother_FcRn0    = Vother_endo*FcRn0
+
+end ! initial
+
+dynamic    
+
+derivative        
+
+    !---------------------------------------------------------------------------
+    ! Unconjugated drug
+    !---------------------------------------------------------------------------
+    
+    ! Blood compartment --------------------------------------------------------
+    
+    ! Plasma (eq 1)
+    dAplasma_UD =   Qheart_plas*Cheart_plas_UD ...
+                    + Qkidney_plas*Ckidney_plas_UD ...
+                    + Qbrain_plas*Cbrain_plas_UD ...
+                    + Qmuscle_plas*Cmuscle_plas_UD ...
+                    + Qmarrow_plas*Cmarrow_plas_UD ...
+                    + Qthymus_plas*Cthymus_plas_UD ...
+                    + Qskin_plas*Cskin_plas_UD ...
+                    + Qfat_plas*Cfat_plas_UD ...
+                    + (Qliver_plas + Qsi_plas + Qli_plas ...
+                         + Qspleen_plas + Qpancreas_plas)*Cliver_plas_UD ...
+                    + Qother_plas*Cother_plas_UD ...
+                    + PSbc*(Cbc_UD/Kpbc) ...
+                    - fup*PSbc*Cplasma_UD ...
+                    - Qlung_plas*Cplasma_UD ...
+                    - (2*P_UD*Rcap/(Rkrogh^2))*(Cplasma_UD - Ctumor_freeUD_ext/eps_UD)*Vtumor ...
+                    - (6*D_UD/(Rtumor^2))*(Cplasma_UD - Ctumor_freeUD_ext/eps_UD)*Vtumor ...
+                    + Kdec*Cplasma_ADC*Vplasma*DAR
+    Aplasma_UD  = integ(dAplasma_UD, 0.0)
+    Cplasma_UD  = Aplasma_UD/Vplasma              
+    
+    ! Blood cells (eq 2)
+    dAbc_UD     =   fup*PSbc*Cplasma_UD ...
+                    - PSbc*(Cbc_UD/Kpbc) ...
+                    - Qlung_bc*Cbc_UD ...
+                    + Qheart_bc*Cheart_bc_UD ...
+                    + Qkidney_bc*Ckidney_bc_UD ...
+                    + Qbrain_bc*Cbrain_bc_UD ...
+                    + Qmuscle_bc*Cmuscle_bc_UD ...
+                    + Qmarrow_bc*Cmarrow_bc_UD ...
+                    + Qthymus_bc*Cthymus_bc_UD ...
+                    + Qskin_bc*Cskin_bc_UD ...
+                    + Qfat_bc*Cfat_bc_UD ...
+                    + (Qliver_bc + Qsi_bc + Qli_bc ...
+                         + Qspleen_bc + Qpancreas_bc)*Cliver_bc_UD ...
+                    + Qother_bc*Cother_bc_UD
+    Abc_UD      = integ(dAbc_UD, 0.0)
+    Cbc_UD      = Abc_UD/Vbc
+    
+    ! Liver compartment --------------------------------------------------------
+    
+    ! Blood cells (eq 3)
+    dAliver_bc_UD   =   fup*PSbc*Cliver_plas_UD ...
+                        - PSbc*(Cliver_bc_UD/Kpbc) ...
+                        + Qliver_bc*Clung_bc_UD ...
+                        + Qsi_bc*Csi_bc_UD ...
+                        + Qli_bc*Cli_bc_UD ...
+                        + Qspleen_bc*Cspleen_bc_UD ...
+                        + Qpancreas_bc*Cpancreas_bc_UD ...
+                        - (Qliver_bc + Qsi_bc + Qliver_bc + Qspleen_bc + Qpancreas_bc)*Cliver_bc_UD
+    Aliver_bc_UD    =   integ(dAliver_bc_UD, 0.0)
+    Cliver_bc_UD    = Aliver_bc_UD/Vliver_bc
+    
+    ! Plasma (eq 4)
+    dAliver_plas_UD   = Qliver_plas*Clung_plas_UD ...
+                        + Qsi_plas*Csi_plas_UD ...
+                        + Qli_plas*Cli_plas_UD ...
+                        + Qspleen_plas*Cspleen_plas_UD ...
+                        + Qpancreas_plas*Cpancreas_plas_UD ...
+                        - (Qliver_plas + Qsi_plas + Qli_plas + Qspleen_plas + Qpancreas_plas)*Cliver_plas_UD ...
+                        - fup*PSbc*Cliver_plas_UD + PSbc*(Cliver_bc_UD/Kpbc) ...
+                        - fup*Qliver_plas*G*Cliver_plas_UD ...
+                        + Qliver_plas*G*Cliver_endo_UD ...
+                        + Kdec*Cliver_plas_ADC*Vliver_plas*DAR
+                        
+    Aliver_plas_UD    = integ(dAliver_plas_UD, 0.0)
+    Cliver_plas_UD    = Aliver_plas_UD/Vliver_plas
+    
+    ! Endosomal (eq 5)
+    dAliver_endo_UD   = Qliver_plas*G*fup*Cliver_plas_UD ...
+                        - 2*Qliver_plas*G*Cliver_endo_UD ...
+                        + Qliver_plas*G*Cliver_int_UD ...
+                        + DAR*Kdeg*Cliver_endo_uADC*Vliver_endo
+                        
+    Aliver_endo_UD    = integ(dAliver_endo_UD, 0.0)
+    Cliver_endo_UD    = Aliver_endo_UD/Vliver_endo
+
+    ! Interstitial (eq 6)
+    dAliver_int_UD   =  Qliver_plas*G*Cliver_endo_UD ...
+                        - Qliver_plas*G*Cliver_int_UD ...
+                        - PSliver*Cliver_int_UD ...
+                        + PSliver*(Cliver_cell_UD/Kpliver) ...
+                        - Cliver_int_UD*CLhepatic ...
+                        + Kdec*Cliver_int_ADC*Vliver_int*DAR
+                        
+    Aliver_int_UD    = integ(dAliver_int_UD, 0.0)
+    Cliver_int_UD    = Aliver_int_UD/Vliver_int
+    
+    ! Cellular (eq 7)
+    dAliver_cell_UD   = PSliver*Cliver_int_UD - PSliver*(Cliver_cell_UD/Kpliver)
+    
+    Aliver_cell_UD    = integ(dAliver_cell_UD, 0.0)
+    Cliver_cell_UD    = Aliver_cell_UD/Vliver_cell
+    
+    ! Heart compartment --------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAheart_bc_UD =    fup*PSbc*Cheart_plas_UD ...
+                        - PSbc*(Cheart_bc_UD/KPbc) ...
+                        + Qheart_bc*Clung_bc_UD ...
+                        - Qheart_bc*Cheart_bc_UD
+    
+    Aheart_bc_UD  = integ(dAheart_bc_UD, 0.0)
+    Cheart_bc_UD  = Aheart_bc_UD/Vheart_bc
+    
+    ! Plasma (eq 9)
+    dAheart_plas_UD = Qheart_plas*Clung_plas_UD ...
+                        - Qheart_plas*Cheart_plas_UD ...
+                        - fup*Qheart_plas*G*Cheart_plas_UD ...
+                        + Qheart_plas*G*Cheart_endo_UD ...
+                        - fup*PSbc*Cheart_plas_UD ...
+                        + PSbc*(Cheart_bc_UD/KPbc) ...
+                        + Kdec*Cheart_plas_ADC*Vheart_plas*DAR
+                        
+    Aheart_plas_UD = integ(dAheart_plas_UD, 0.0)
+    Cheart_plas_UD = Aheart_plas_UD/Vheart_plas
+    
+    ! Endosomal (eq 10)
+    dAheart_endo_UD = fup*Qheart_plas*G*Cheart_plas_UD ...
+                        - 2*Qheart_plas*G*Cheart_endo_UD ...
+                        + Qheart_plas*G*Cheart_int_UD ...
+                        + DAR*Kdeg*Cheart_endo_uADC*Vheart_endo
+                        
+    Aheart_endo_UD  = integ(dAheart_endo_UD, 0.0)
+    Cheart_endo_UD  = Aheart_endo_UD/Vheart_bc
+    
+    ! Interstitial (eq 11)
+    dAheart_int_UD =   Qheart_plas*G*Cheart_endo_UD ...
+                        - Qheart_plas*G*Cheart_int_UD ...
+                        - PSheart*Cheart_int_UD ...
+                        + PSheart*(Cheart_cell_UD/KPheart) ...
+                        + Kdec*Cheart_int_ADC*Vheart_int*DAR
+    
+    Aheart_int_UD  = integ(dAheart_int_UD, 0.0)
+    Cheart_int_UD  = Aheart_int_UD/Vheart_int
+    
+    ! Cellular (eq 12)
+    dAheart_cell_UD =  PSheart*Cheart_int_UD ...
+                        - PSheart*(Cheart_cell_UD/KPheart) 
+                        
+    Aheart_cell_UD  = integ(dAheart_cell_UD, 0.0)
+    Cheart_cell_UD  = Aheart_cell_UD/Vheart_cell
+    
+    ! Kidney compartment -------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAkidney_bc_UD =    fup*PSbc*Ckidney_plas_UD ...
+                        - PSbc*(Ckidney_bc_UD/KPbc) ...
+                        + Qkidney_bc*Clung_bc_UD ...
+                        - Qkidney_bc*Ckidney_bc_UD
+    
+    Akidney_bc_UD  = integ(dAkidney_bc_UD, 0.0)
+    Ckidney_bc_UD  = Akidney_bc_UD/Vkidney_bc
+    
+    ! Plasma (eq 9)
+    dAkidney_plas_UD = Qkidney_plas*Clung_plas_UD ...
+                        - Qkidney_plas*Ckidney_plas_UD ...
+                        - fup*Qkidney_plas*G*Ckidney_plas_UD ...
+                        + Qkidney_plas*G*Ckidney_endo_UD ...
+                        - fup*PSbc*Ckidney_plas_UD ...
+                        + PSbc*(Ckidney_bc_UD/KPbc) ...
+                        + Kdec*Ckidney_plas_ADC*Vkidney_plas*DAR
+                        
+    Akidney_plas_UD = integ(dAkidney_plas_UD, 0.0)
+    Ckidney_plas_UD = Akidney_plas_UD/Vkidney_plas
+    
+    ! Endosomal (eq 10)
+    dAkidney_endo_UD = fup*Qkidney_plas*G*Ckidney_plas_UD ...
+                        - 2*Qkidney_plas*G*Ckidney_endo_UD ...
+                        + Qkidney_plas*G*Ckidney_int_UD ...
+                        + DAR*Kdeg*Ckidney_endo_uADC*Vkidney_endo
+                        
+    Akidney_endo_UD  = integ(dAkidney_endo_UD, 0.0)
+    Ckidney_endo_UD  = Akidney_endo_UD/Vkidney_bc
+    
+    ! Interstitial (eq 11)
+    dAkidney_int_UD =   Qkidney_plas*G*Ckidney_endo_UD ...
+                        - Qkidney_plas*G*Ckidney_int_UD ...
+                        - PSkidney*Ckidney_int_UD ...
+                        + PSkidney*(Ckidney_cell_UD/KPkidney) ...
+                        + Kdec*Ckidney_int_ADC*Vkidney_int*DAR
+    
+    Akidney_int_UD  = integ(dAkidney_int_UD, 0.0)
+    Ckidney_int_UD  = Akidney_int_UD/Vkidney_int
+    
+    ! Cellular (eq 12)
+    dAkidney_cell_UD =  PSkidney*Ckidney_int_UD ...
+                        - PSkidney*(Ckidney_cell_UD/KPkidney) 
+                        
+    Akidney_cell_UD  = integ(dAkidney_cell_UD, 0.0)
+    Ckidney_cell_UD  = Akidney_cell_UD/Vkidney_cell
+    
+    ! Muscle compartment -------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAmuscle_bc_UD =    fup*PSbc*Cmuscle_plas_UD ...
+                        - PSbc*(Cmuscle_bc_UD/KPbc) ...
+                        + Qmuscle_bc*Clung_bc_UD ...
+                        - Qmuscle_bc*Cmuscle_bc_UD
+    
+    Amuscle_bc_UD  = integ(dAmuscle_bc_UD, 0.0)
+    Cmuscle_bc_UD  = Amuscle_bc_UD/Vmuscle_bc
+    
+    ! Plasma (eq 9)
+    dAmuscle_plas_UD = Qmuscle_plas*Clung_plas_UD ...
+                        - Qmuscle_plas*Cmuscle_plas_UD ...
+                        - fup*Qmuscle_plas*G*Cmuscle_plas_UD ...
+                        + Qmuscle_plas*G*Cmuscle_endo_UD ...
+                        - fup*PSbc*Cmuscle_plas_UD ...
+                        + PSbc*(Cmuscle_bc_UD/KPbc) ...
+                        + Kdec*Cmuscle_plas_ADC*Vmuscle_plas*DAR
+                        
+    Amuscle_plas_UD = integ(dAmuscle_plas_UD, 0.0)
+    Cmuscle_plas_UD = Amuscle_plas_UD/Vmuscle_plas
+    
+    ! Endosomal (eq 10)
+    dAmuscle_endo_UD = fup*Qmuscle_plas*G*Cmuscle_plas_UD ...
+                        - 2*Qmuscle_plas*G*Cmuscle_endo_UD ...
+                        + Qmuscle_plas*G*Cmuscle_int_UD ...
+                        + DAR*Kdeg*Cmuscle_endo_uADC*Vmuscle_endo
+                        
+    Amuscle_endo_UD  = integ(dAmuscle_endo_UD, 0.0)
+    Cmuscle_endo_UD  = Amuscle_endo_UD/Vmuscle_bc
+    
+    ! Interstitial (eq 11)
+    dAmuscle_int_UD =   Qmuscle_plas*G*Cmuscle_endo_UD ...
+                        - Qmuscle_plas*G*Cmuscle_int_UD ...
+                        - PSmuscle*Cmuscle_int_UD ...
+                        + PSmuscle*(Cmuscle_cell_UD/KPmuscle) ...
+                        + Kdec*Cmuscle_int_ADC*Vmuscle_int*DAR
+    
+    Amuscle_int_UD  = integ(dAmuscle_int_UD, 0.0)
+    Cmuscle_int_UD  = Amuscle_int_UD/Vmuscle_int
+    
+    ! Cellular (eq 12)
+    dAmuscle_cell_UD =  PSmuscle*Cmuscle_int_UD ...
+                        - PSmuscle*(Cmuscle_cell_UD/KPmuscle) 
+                        
+    Amuscle_cell_UD  = integ(dAmuscle_cell_UD, 0.0)
+    Cmuscle_cell_UD  = Amuscle_cell_UD/Vmuscle_cell
+    
+    ! Skin compartment ---------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAskin_bc_UD =    fup*PSbc*Cskin_plas_UD ...
+                        - PSbc*(Cskin_bc_UD/KPbc) ...
+                        + Qskin_bc*Clung_bc_UD ...
+                        - Qskin_bc*Cskin_bc_UD
+    
+    Askin_bc_UD  = integ(dAskin_bc_UD, 0.0)
+    Cskin_bc_UD  = Askin_bc_UD/Vskin_bc
+    
+    ! Plasma (eq 9)
+    dAskin_plas_UD = Qskin_plas*Clung_plas_UD ...
+                        - Qskin_plas*Cskin_plas_UD ...
+                        - fup*Qskin_plas*G*Cskin_plas_UD ...
+                        + Qskin_plas*G*Cskin_endo_UD ...
+                        - fup*PSbc*Cskin_plas_UD ...
+                        + PSbc*(Cskin_bc_UD/KPbc) ...
+                        + Kdec*Cskin_plas_ADC*Vskin_plas*DAR
+                        
+    Askin_plas_UD = integ(dAskin_plas_UD, 0.0)
+    Cskin_plas_UD = Askin_plas_UD/Vskin_plas
+    
+    ! Endosomal (eq 10)
+    dAskin_endo_UD = fup*Qskin_plas*G*Cskin_plas_UD ...
+                        - 2*Qskin_plas*G*Cskin_endo_UD ...
+                        + Qskin_plas*G*Cskin_int_UD ...
+                        + DAR*Kdeg*Cskin_endo_uADC*Vskin_endo
+                        
+    Askin_endo_UD  = integ(dAskin_endo_UD, 0.0)
+    Cskin_endo_UD  = Askin_endo_UD/Vskin_bc
+    
+    ! Interstitial (eq 11)
+    dAskin_int_UD =   Qskin_plas*G*Cskin_endo_UD ...
+                        - Qskin_plas*G*Cskin_int_UD ...
+                        - PSskin*Cskin_int_UD ...
+                        + PSskin*(Cskin_cell_UD/KPskin) ...
+                        + Kdec*Cskin_int_ADC*Vskin_int*DAR
+    
+    Askin_int_UD  = integ(dAskin_int_UD, 0.0)
+    Cskin_int_UD  = Askin_int_UD/Vskin_int
+    
+    ! Cellular (eq 12)
+    dAskin_cell_UD =  PSskin*Cskin_int_UD ...
+                        - PSskin*(Cskin_cell_UD/KPskin) 
+                        
+    Askin_cell_UD  = integ(dAskin_cell_UD, 0.0)
+    Cskin_cell_UD  = Askin_cell_UD/Vskin_cell
+    
+    ! Brain compartment --------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAbrain_bc_UD =    fup*PSbc*Cbrain_plas_UD ...
+                        - PSbc*(Cbrain_bc_UD/KPbc) ...
+                        + Qbrain_bc*Clung_bc_UD ...
+                        - Qbrain_bc*Cbrain_bc_UD
+    
+    Abrain_bc_UD  = integ(dAbrain_bc_UD, 0.0)
+    Cbrain_bc_UD  = Abrain_bc_UD/Vbrain_bc
+    
+    ! Plasma (eq 9)
+    dAbrain_plas_UD = Qbrain_plas*Clung_plas_UD ...
+                        - Qbrain_plas*Cbrain_plas_UD ...
+                        - fup*Qbrain_plas*G*Cbrain_plas_UD ...
+                        + Qbrain_plas*G*Cbrain_endo_UD ...
+                        - fup*PSbc*Cbrain_plas_UD ...
+                        + PSbc*(Cbrain_bc_UD/KPbc) ...
+                        + Kdec*Cbrain_plas_ADC*Vbrain_plas*DAR
+                        
+    Abrain_plas_UD = integ(dAbrain_plas_UD, 0.0)
+    Cbrain_plas_UD = Abrain_plas_UD/Vbrain_plas
+    
+    ! Endosomal (eq 10)
+    dAbrain_endo_UD = fup*Qbrain_plas*G*Cbrain_plas_UD ...
+                        - 2*Qbrain_plas*G*Cbrain_endo_UD ...
+                        + Qbrain_plas*G*Cbrain_int_UD ...
+                        + DAR*Kdeg*Cbrain_endo_uADC*Vbrain_endo
+                        
+    Abrain_endo_UD  = integ(dAbrain_endo_UD, 0.0)
+    Cbrain_endo_UD  = Abrain_endo_UD/Vbrain_bc
+    
+    ! Interstitial (eq 11)
+    dAbrain_int_UD =   Qbrain_plas*G*Cbrain_endo_UD ...
+                        - Qbrain_plas*G*Cbrain_int_UD ...
+                        - PSbrain*Cbrain_int_UD ...
+                        + PSbrain*(Cbrain_cell_UD/KPbrain) ...
+                        + Kdec*Cbrain_int_ADC*Vbrain_int*DAR
+    
+    Abrain_int_UD  = integ(dAbrain_int_UD, 0.0)
+    Cbrain_int_UD  = Abrain_int_UD/Vbrain_int
+    
+    ! Cellular (eq 12)
+    dAbrain_cell_UD =  PSbrain*Cbrain_int_UD ...
+                        - PSbrain*(Cbrain_cell_UD/KPbrain) 
+                        
+    Abrain_cell_UD  = integ(dAbrain_cell_UD, 0.0)
+    Cbrain_cell_UD  = Abrain_cell_UD/Vbrain_cell
+    
+    ! Fat compartment ------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAfat_bc_UD =    fup*PSbc*Cfat_plas_UD ...
+                        - PSbc*(Cfat_bc_UD/KPbc) ...
+                        + Qfat_bc*Clung_bc_UD ...
+                        - Qfat_bc*Cfat_bc_UD
+    
+    Afat_bc_UD  = integ(dAfat_bc_UD, 0.0)
+    Cfat_bc_UD  = Afat_bc_UD/Vfat_bc
+    
+    ! Plasma (eq 9)
+    dAfat_plas_UD = Qfat_plas*Clung_plas_UD ...
+                        - Qfat_plas*Cfat_plas_UD ...
+                        - fup*Qfat_plas*G*Cfat_plas_UD ...
+                        + Qfat_plas*G*Cfat_endo_UD ...
+                        - fup*PSbc*Cfat_plas_UD ...
+                        + PSbc*(Cfat_bc_UD/KPbc) ...
+                        + Kdec*Cfat_plas_ADC*Vfat_plas*DAR
+                        
+    Afat_plas_UD = integ(dAfat_plas_UD, 0.0)
+    Cfat_plas_UD = Afat_plas_UD/Vfat_plas
+    
+    ! Endosomal (eq 10)
+    dAfat_endo_UD = fup*Qfat_plas*G*Cfat_plas_UD ...
+                        - 2*Qfat_plas*G*Cfat_endo_UD ...
+                        + Qfat_plas*G*Cfat_int_UD ...
+                        + DAR*Kdeg*Cfat_endo_uADC*Vfat_endo
+                        
+    Afat_endo_UD  = integ(dAfat_endo_UD, 0.0)
+    Cfat_endo_UD  = Afat_endo_UD/Vfat_bc
+    
+    ! Interstitial (eq 11)
+    dAfat_int_UD =   Qfat_plas*G*Cfat_endo_UD ...
+                        - Qfat_plas*G*Cfat_int_UD ...
+                        - PSfat*Cfat_int_UD ...
+                        + PSfat*(Cfat_cell_UD/KPfat) ...
+                        + Kdec*Cfat_int_ADC*Vfat_int*DAR
+    
+    Afat_int_UD  = integ(dAfat_int_UD, 0.0)
+    Cfat_int_UD  = Afat_int_UD/Vfat_int
+    
+    ! Cellular (eq 12)
+    dAfat_cell_UD =  PSfat*Cfat_int_UD ...
+                        - PSfat*(Cfat_cell_UD/KPfat) 
+                        
+    Afat_cell_UD  = integ(dAfat_cell_UD, 0.0)
+    Cfat_cell_UD  = Afat_cell_UD/Vfat_cell
+    
+    ! Thymus compartment -------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAthymus_bc_UD =    fup*PSbc*Cthymus_plas_UD ...
+                        - PSbc*(Cthymus_bc_UD/KPbc) ...
+                        + Qthymus_bc*Clung_bc_UD ...
+                        - Qthymus_bc*Cthymus_bc_UD
+    
+    Athymus_bc_UD  = integ(dAthymus_bc_UD, 0.0)
+    Cthymus_bc_UD  = Athymus_bc_UD/Vthymus_bc
+    
+    ! Plasma (eq 9)
+    dAthymus_plas_UD = Qthymus_plas*Clung_plas_UD ...
+                        - Qthymus_plas*Cthymus_plas_UD ...
+                        - fup*Qthymus_plas*G*Cthymus_plas_UD ...
+                        + Qthymus_plas*G*Cthymus_endo_UD ...
+                        - fup*PSbc*Cthymus_plas_UD ...
+                        + PSbc*(Cthymus_bc_UD/KPbc) ...
+                        + Kdec*Cthymus_plas_ADC*Vthymus_plas*DAR
+                        
+    Athymus_plas_UD = integ(dAthymus_plas_UD, 0.0)
+    Cthymus_plas_UD = Athymus_plas_UD/Vthymus_plas
+    
+    ! Endosomal (eq 10)
+    dAthymus_endo_UD = fup*Qthymus_plas*G*Cthymus_plas_UD ...
+                        - 2*Qthymus_plas*G*Cthymus_endo_UD ...
+                        + Qthymus_plas*G*Cthymus_int_UD ...
+                        + DAR*Kdeg*Cthymus_endo_uADC*Vthymus_endo
+                        
+    Athymus_endo_UD  = integ(dAthymus_endo_UD, 0.0)
+    Cthymus_endo_UD  = Athymus_endo_UD/Vthymus_bc
+    
+    ! Interstitial (eq 11)
+    dAthymus_int_UD =   Qthymus_plas*G*Cthymus_endo_UD ...
+                        - Qthymus_plas*G*Cthymus_int_UD ...
+                        - PSthymus*Cthymus_int_UD ...
+                        + PSthymus*(Cthymus_cell_UD/KPthymus) ...
+                        + Kdec*Cthymus_int_ADC*Vthymus_int*DAR
+    
+    Athymus_int_UD  = integ(dAthymus_int_UD, 0.0)
+    Cthymus_int_UD  = Athymus_int_UD/Vthymus_int
+    
+    ! Cellular (eq 12)
+    dAthymus_cell_UD =  PSthymus*Cthymus_int_UD ...
+                        - PSthymus*(Cthymus_cell_UD/KPthymus) 
+                        
+    Athymus_cell_UD  = integ(dAthymus_cell_UD, 0.0)
+    Cthymus_cell_UD  = Athymus_cell_UD/Vthymus_cell
+    
+    ! Marrow compartment ---------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAmarrow_bc_UD =    fup*PSbc*Cmarrow_plas_UD ...
+                        - PSbc*(Cmarrow_bc_UD/KPbc) ...
+                        + Qmarrow_bc*Clung_bc_UD ...
+                        - Qmarrow_bc*Cmarrow_bc_UD
+    
+    Amarrow_bc_UD  = integ(dAmarrow_bc_UD, 0.0)
+    Cmarrow_bc_UD  = Amarrow_bc_UD/Vmarrow_bc
+    
+    ! Plasma (eq 9)
+    dAmarrow_plas_UD = Qmarrow_plas*Clung_plas_UD ...
+                        - Qmarrow_plas*Cmarrow_plas_UD ...
+                        - fup*Qmarrow_plas*G*Cmarrow_plas_UD ...
+                        + Qmarrow_plas*G*Cmarrow_endo_UD ...
+                        - fup*PSbc*Cmarrow_plas_UD ...
+                        + PSbc*(Cmarrow_bc_UD/KPbc) ...
+                        + Kdec*Cmarrow_plas_ADC*Vmarrow_plas*DAR
+                        
+    Amarrow_plas_UD = integ(dAmarrow_plas_UD, 0.0)
+    Cmarrow_plas_UD = Amarrow_plas_UD/Vmarrow_plas
+    
+    ! Endosomal (eq 10)
+    dAmarrow_endo_UD = fup*Qmarrow_plas*G*Cmarrow_plas_UD ...
+                        - 2*Qmarrow_plas*G*Cmarrow_endo_UD ...
+                        + Qmarrow_plas*G*Cmarrow_int_UD ...
+                        + DAR*Kdeg*Cmarrow_endo_uADC*Vmarrow_endo
+                        
+    Amarrow_endo_UD  = integ(dAmarrow_endo_UD, 0.0)
+    Cmarrow_endo_UD  = Amarrow_endo_UD/Vmarrow_bc
+    
+    ! Interstitial (eq 11)
+    dAmarrow_int_UD =   Qmarrow_plas*G*Cmarrow_endo_UD ...
+                        - Qmarrow_plas*G*Cmarrow_int_UD ...
+                        - PSmarrow*Cmarrow_int_UD ...
+                        + PSmarrow*(Cmarrow_cell_UD/KPmarrow) ...
+                        + Kdec*Cmarrow_int_ADC*Vmarrow_int*DAR
+    
+    Amarrow_int_UD  = integ(dAmarrow_int_UD, 0.0)
+    Cmarrow_int_UD  = Amarrow_int_UD/Vmarrow_int
+    
+    ! Cellular (eq 12)
+    dAmarrow_cell_UD =  PSmarrow*Cmarrow_int_UD ...
+                        - PSmarrow*(Cmarrow_cell_UD/KPmarrow) 
+                        
+    Amarrow_cell_UD  = integ(dAmarrow_cell_UD, 0.0)
+    Cmarrow_cell_UD  = Amarrow_cell_UD/Vmarrow_cell
+
+    ! Other compartment --------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAother_bc_UD =    fup*PSbc*Cother_plas_UD ...
+                        - PSbc*(Cother_bc_UD/KPbc) ...
+                        + Qother_bc*Clung_bc_UD ...
+                        - Qother_bc*Cother_bc_UD
+    
+    Aother_bc_UD  = integ(dAother_bc_UD, 0.0)
+    Cother_bc_UD  = Aother_bc_UD/Vother_bc
+    
+    ! Plasma (eq 9)
+    dAother_plas_UD = Qother_plas*Clung_plas_UD ...
+                        - Qother_plas*Cother_plas_UD ...
+                        - fup*Qother_plas*G*Cother_plas_UD ...
+                        + Qother_plas*G*Cother_endo_UD ...
+                        - fup*PSbc*Cother_plas_UD ...
+                        + PSbc*(Cother_bc_UD/KPbc) ...
+                        + Kdec*Cother_plas_ADC*Vother_plas*DAR
+                        
+    Aother_plas_UD = integ(dAother_plas_UD, 0.0)
+    Cother_plas_UD = Aother_plas_UD/Vother_plas
+    
+    ! Endosomal (eq 10)
+    dAother_endo_UD = fup*Qother_plas*G*Cother_plas_UD ...
+                        - 2*Qother_plas*G*Cother_endo_UD ...
+                        + Qother_plas*G*Cother_int_UD ...
+                        + DAR*Kdeg*Cother_endo_uADC*Vother_endo
+                        
+    Aother_endo_UD  = integ(dAother_endo_UD, 0.0)
+    Cother_endo_UD  = Aother_endo_UD/Vother_bc
+    
+    ! Interstitial (eq 11)
+    dAother_int_UD =   Qother_plas*G*Cother_endo_UD ...
+                        - Qother_plas*G*Cother_int_UD ...
+                        - PSother*Cother_int_UD ...
+                        + PSother*(Cother_cell_UD/KPother) ...
+                        + Kdec*Cother_int_ADC*Vother_int*DAR
+    
+    Aother_int_UD  = integ(dAother_int_UD, 0.0)
+    Cother_int_UD  = Aother_int_UD/Vother_int
+    
+    ! Cellular (eq 12)
+    dAother_cell_UD =  PSother*Cother_int_UD ...
+                        - PSother*(Cother_cell_UD/KPother) 
+                        
+    Aother_cell_UD  = integ(dAother_cell_UD, 0.0)
+    Cother_cell_UD  = Aother_cell_UD/Vother_cell
+
+    ! Small intestine compartment ----------------------------------------------
+    ! Blood cells (eq 8)
+    dAsi_bc_UD =    fup*PSbc*Csi_plas_UD ...
+                        - PSbc*(Csi_bc_UD/KPbc) ...
+                        + Qsi_bc*Clung_bc_UD ...
+                        - Qsi_bc*Csi_bc_UD
+    
+    Asi_bc_UD  = integ(dAsi_bc_UD, 0.0)
+    Csi_bc_UD  = Asi_bc_UD/Vsi_bc
+    
+    ! Plasma (eq 9)
+    dAsi_plas_UD = Qsi_plas*Clung_plas_UD ...
+                        - Qsi_plas*Csi_plas_UD ...
+                        - fup*Qsi_plas*G*Csi_plas_UD ...
+                        + Qsi_plas*G*Csi_endo_UD ...
+                        - fup*PSbc*Csi_plas_UD ...
+                        + PSbc*(Csi_bc_UD/KPbc) ...
+                        + Kdec*Csi_plas_ADC*Vsi_plas*DAR
+                        
+    Asi_plas_UD = integ(dAsi_plas_UD, 0.0)
+    Csi_plas_UD = Asi_plas_UD/Vsi_plas
+    
+    ! Endosomal (eq 10)
+    dAsi_endo_UD = fup*Qsi_plas*G*Csi_plas_UD ...
+                        - 2*Qsi_plas*G*Csi_endo_UD ...
+                        + Qsi_plas*G*Csi_int_UD ...
+                        + DAR*Kdeg*Csi_endo_uADC*Vsi_endo
+                        
+    Asi_endo_UD  = integ(dAsi_endo_UD, 0.0)
+    Csi_endo_UD  = Asi_endo_UD/Vsi_bc
+    
+    ! Interstitial (eq 11)
+    dAsi_int_UD =   Qsi_plas*G*Csi_endo_UD ...
+                        - Qsi_plas*G*Csi_int_UD ...
+                        - PSsi*Csi_int_UD ...
+                        + PSsi*(Csi_cell_UD/KPsi) ...
+                        + Kdec*Csi_int_ADC*Vsi_int*DAR
+    
+    Asi_int_UD  = integ(dAsi_int_UD, 0.0)
+    Csi_int_UD  = Asi_int_UD/Vsi_int
+    
+    ! Cellular (eq 12)
+    dAsi_cell_UD =  PSsi*Csi_int_UD ...
+                        - PSsi*(Csi_cell_UD/KPsi) 
+                        
+    Asi_cell_UD  = integ(dAsi_cell_UD, 0.0)
+    Csi_cell_UD  = Asi_cell_UD/Vsi_cell
+    
+    ! Large intestine compartment ----------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAli_bc_UD =    fup*PSbc*Cli_plas_UD ...
+                        - PSbc*(Cli_bc_UD/KPbc) ...
+                        + Qli_bc*Clung_bc_UD ...
+                        - Qli_bc*Cli_bc_UD
+    
+    Ali_bc_UD  = integ(dAli_bc_UD, 0.0)
+    Cli_bc_UD  = Ali_bc_UD/Vli_bc
+    
+    ! Plasma (eq 9)
+    dAli_plas_UD = Qli_plas*Clung_plas_UD ...
+                        - Qli_plas*Cli_plas_UD ...
+                        - fup*Qli_plas*G*Cli_plas_UD ...
+                        + Qli_plas*G*Cli_endo_UD ...
+                        - fup*PSbc*Cli_plas_UD ...
+                        + PSbc*(Cli_bc_UD/KPbc) ...
+                        + Kdec*Cli_plas_ADC*Vli_plas*DAR
+                        
+    Ali_plas_UD = integ(dAli_plas_UD, 0.0)
+    Cli_plas_UD = Ali_plas_UD/Vli_plas
+    
+    ! Endosomal (eq 10)
+    dAli_endo_UD = fup*Qli_plas*G*Cli_plas_UD ...
+                        - 2*Qli_plas*G*Cli_endo_UD ...
+                        + Qli_plas*G*Cli_int_UD ...
+                        + DAR*Kdeg*Cli_endo_uADC*Vli_endo
+                        
+    Ali_endo_UD  = integ(dAli_endo_UD, 0.0)
+    Cli_endo_UD  = Ali_endo_UD/Vli_bc
+    
+    ! Interstitial (eq 11)
+    dAli_int_UD =   Qli_plas*G*Cli_endo_UD ...
+                        - Qli_plas*G*Cli_int_UD ...
+                        - PSli*Cli_int_UD ...
+                        + PSli*(Cli_cell_UD/KPli) ...
+                        + Kdec*Cli_int_ADC*Vli_int*DAR
+    
+    Ali_int_UD  = integ(dAli_int_UD, 0.0)
+    Cli_int_UD  = Ali_int_UD/Vli_int
+    
+    ! Cellular (eq 12)
+    dAli_cell_UD =  PSli*Cli_int_UD ...
+                        - PSli*(Cli_cell_UD/KPli) 
+                        
+    Ali_cell_UD  = integ(dAli_cell_UD, 0.0)
+    Cli_cell_UD  = Ali_cell_UD/Vli_cell
+
+    ! Spleen compartment -------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAspleen_bc_UD =    fup*PSbc*Cspleen_plas_UD ...
+                        - PSbc*(Cspleen_bc_UD/KPbc) ...
+                        + Qspleen_bc*Clung_bc_UD ...
+                        - Qspleen_bc*Cspleen_bc_UD
+    
+    Aspleen_bc_UD  = integ(dAspleen_bc_UD, 0.0)
+    Cspleen_bc_UD  = Aspleen_bc_UD/Vspleen_bc
+    
+    ! Plasma (eq 9)
+    dAspleen_plas_UD = Qspleen_plas*Clung_plas_UD ...
+                        - Qspleen_plas*Cspleen_plas_UD ...
+                        - fup*Qspleen_plas*G*Cspleen_plas_UD ...
+                        + Qspleen_plas*G*Cspleen_endo_UD ...
+                        - fup*PSbc*Cspleen_plas_UD ...
+                        + PSbc*(Cspleen_bc_UD/KPbc) ...
+                        + Kdec*Cspleen_plas_ADC*Vspleen_plas*DAR
+                        
+    Aspleen_plas_UD = integ(dAspleen_plas_UD, 0.0)
+    Cspleen_plas_UD = Aspleen_plas_UD/Vspleen_plas
+    
+    ! Endosomal (eq 10)
+    dAspleen_endo_UD = fup*Qspleen_plas*G*Cspleen_plas_UD ...
+                        - 2*Qspleen_plas*G*Cspleen_endo_UD ...
+                        + Qspleen_plas*G*Cspleen_int_UD ...
+                        + DAR*Kdeg*Cspleen_endo_uADC*Vspleen_endo
+                        
+    Aspleen_endo_UD  = integ(dAspleen_endo_UD, 0.0)
+    Cspleen_endo_UD  = Aspleen_endo_UD/Vspleen_bc
+    
+    ! Interstitial (eq 11)
+    dAspleen_int_UD =   Qspleen_plas*G*Cspleen_endo_UD ...
+                        - Qspleen_plas*G*Cspleen_int_UD ...
+                        - PSspleen*Cspleen_int_UD ...
+                        + PSspleen*(Cspleen_cell_UD/KPspleen) ...
+                        + Kdec*Cspleen_int_ADC*Vspleen_int*DAR
+    
+    Aspleen_int_UD  = integ(dAspleen_int_UD, 0.0)
+    Cspleen_int_UD  = Aspleen_int_UD/Vspleen_int
+    
+    ! Cellular (eq 12)
+    dAspleen_cell_UD =  PSspleen*Cspleen_int_UD ...
+                        - PSspleen*(Cspleen_cell_UD/KPspleen) 
+                        
+    Aspleen_cell_UD  = integ(dAspleen_cell_UD, 0.0)
+    Cspleen_cell_UD  = Aspleen_cell_UD/Vspleen_cell
+
+    ! Pancreas compartment -----------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dApancreas_bc_UD =    fup*PSbc*Cpancreas_plas_UD ...
+                        - PSbc*(Cpancreas_bc_UD/KPbc) ...
+                        + Qpancreas_bc*Clung_bc_UD ...
+                        - Qpancreas_bc*Cpancreas_bc_UD
+    
+    Apancreas_bc_UD  = integ(dApancreas_bc_UD, 0.0)
+    Cpancreas_bc_UD  = Apancreas_bc_UD/Vpancreas_bc
+    
+    ! Plasma (eq 9)
+    dApancreas_plas_UD = Qpancreas_plas*Clung_plas_UD ...
+                        - Qpancreas_plas*Cpancreas_plas_UD ...
+                        - fup*Qpancreas_plas*G*Cpancreas_plas_UD ...
+                        + Qpancreas_plas*G*Cpancreas_endo_UD ...
+                        - fup*PSbc*Cpancreas_plas_UD ...
+                        + PSbc*(Cpancreas_bc_UD/KPbc) ...
+                        + Kdec*Cpancreas_plas_ADC*Vpancreas_plas*DAR
+                        
+    Apancreas_plas_UD = integ(dApancreas_plas_UD, 0.0)
+    Cpancreas_plas_UD = Apancreas_plas_UD/Vpancreas_plas
+    
+    ! Endosomal (eq 10)
+    dApancreas_endo_UD = fup*Qpancreas_plas*G*Cpancreas_plas_UD ...
+                        - 2*Qpancreas_plas*G*Cpancreas_endo_UD ...
+                        + Qpancreas_plas*G*Cpancreas_int_UD ...
+                        + DAR*Kdeg*Cpancreas_endo_uADC*Vpancreas_endo
+                        
+    Apancreas_endo_UD  = integ(dApancreas_endo_UD, 0.0)
+    Cpancreas_endo_UD  = Apancreas_endo_UD/Vpancreas_bc
+    
+    ! Interstitial (eq 11)
+    dApancreas_int_UD =   Qpancreas_plas*G*Cpancreas_endo_UD ...
+                        - Qpancreas_plas*G*Cpancreas_int_UD ...
+                        - PSpancreas*Cpancreas_int_UD ...
+                        + PSpancreas*(Cpancreas_cell_UD/KPpancreas) ...
+                        + Kdec*Cpancreas_int_ADC*Vpancreas_int*DAR
+    
+    Apancreas_int_UD  = integ(dApancreas_int_UD, 0.0)
+    Cpancreas_int_UD  = Apancreas_int_UD/Vpancreas_int
+    
+    ! Cellular (eq 12)
+    dApancreas_cell_UD =  PSpancreas*Cpancreas_int_UD ...
+                        - PSpancreas*(Cpancreas_cell_UD/KPpancreas) 
+                        
+    Apancreas_cell_UD  = integ(dApancreas_cell_UD, 0.0)
+    Cpancreas_cell_UD  = Apancreas_cell_UD/Vpancreas_cell
+
+    ! Lung compartment ---------------------------------------------------------
+
+    ! Blood cells (eq 8)
+    dAlung_bc_UD =    fup*PSbc*Clung_plas_UD ...
+                        - PSbc*(Clung_bc_UD/KPbc) ...
+                        + Qlung_bc*Cbc_UD ...
+                        - Qlung_bc*Clung_bc_UD
+    
+    Alung_bc_UD  = integ(dAlung_bc_UD, 0.0)
+    Clung_bc_UD  = Alung_bc_UD/Vlung_bc
+    
+    ! Plasma (eq 9)
+    dAlung_plas_UD = Qlung_plas*Cplasma_UD ...
+                        - Qlung_plas*Clung_plas_UD ...
+                        - fup*Qlung_plas*G*Clung_plas_UD ...
+                        + Qlung_plas*G*Clung_endo_UD ...
+                        - fup*PSbc*Clung_plas_UD ...
+                        + PSbc*(Clung_bc_UD/KPbc) ...
+                        + Kdec*Clung_plas_ADC*Vlung_plas*DAR
+                        
+    Alung_plas_UD = integ(dAlung_plas_UD, 0.0)
+    Clung_plas_UD = Alung_plas_UD/Vlung_plas
+    
+    ! Endosomal (eq 10)
+    dAlung_endo_UD = fup*Qlung_plas*G*Clung_plas_UD ...
+                        - 2*Qlung_plas*G*Clung_endo_UD ...
+                        + Qlung_plas*G*Clung_int_UD ...
+                        + DAR*Kdeg*Clung_endo_uADC*Vlung_endo
+                        
+    Alung_endo_UD  = integ(dAlung_endo_UD, 0.0)
+    Clung_endo_UD  = Alung_endo_UD/Vlung_bc
+    
+    ! Interstitial (eq 11)
+    dAlung_int_UD =   Qlung_plas*G*Clung_endo_UD ...
+                        - Qlung_plas*G*Clung_int_UD ...
+                        - PSlung*Clung_int_UD ...
+                        + PSlung*(Clung_cell_UD/KPlung) ...
+                        + Kdec*Clung_int_ADC*Vlung_int*DAR
+    
+    Alung_int_UD  = integ(dAlung_int_UD, 0.0)
+    Clung_int_UD  = Alung_int_UD/Vlung_int
+    
+    ! Cellular (eq 12)
+    dAlung_cell_UD =  PSlung*Clung_int_UD ...
+                        - PSlung*(Clung_cell_UD/KPlung) 
+                        
+    Alung_cell_UD  = integ(dAlung_cell_UD, 0.0)
+    Clung_cell_UD  = Alung_cell_UD/Vlung_cell
+
+    
+    !---------------------------------------------------------------------------
+    ! ADCs
+    !---------------------------------------------------------------------------
+    
+    ! Blood compartment --------------------------------------------------------
+
+    ! Plasm (eq 13)
+    dAplasma_ADC =  - (Qlung_plas + Qlung_lymph)*Cplasma_ADC ...
+                    + (Qheart_plas - Qheart_lymph)*Cheart_plas_ADC ...
+                    + (Qkidney_plas - Qkidney_lymph)*Ckidney_plas_ADC ...
+                    + (Qbrain_plas - Qbrain_lymph)*Cbrain_plas_ADC ...
+                    + (Qmuscle_plas - Qmuscle_lymph)*Cmuscle_plas_ADC ...
+                    + (Qmarrow_plas - Qmarrow_lymph)*Cmarrow_plas_ADC ...
+                    + (Qthymus_plas - Qthymus_lymph)*Cthymus_plas_ADC ...
+                    + (Qskin_plas - Qskin_lymph)*Cskin_plas_ADC ...
+                    + (Qfat_plas - Qfat_lymph)*Cfat_plas_ADC ...
+                    + ((Qsi_plas - Qsi_lymph) + (Qli_plas - Qli_lymph) ... 
+                        + (Qspleen_plas - Qspleen_lymph) + (Qpancreas_plas - Qpancreas_lymph) ...
+                        + (Qliver_plas - Qliver_lymph))*Cliver_plas_ADC ...
+                    + (Qother_plas - Qother_lymph)*Cother_plas_ADC ...
+                    + Qlymphnodes_lymph*Clymphnodes_ADC ...
+                    - (2*P_ADC*Rcap/(Rkrogh^2))*(Cplasma_ADC - Ctumor_freeADC/eps_ADC)*Vtumor ...
+                    - (6*D_ADC/(Rtumor^2))*(Cplasma_ADC - Ctumor_freeADC/eps_ADC)*Vtumor ...
+                    - Kdec*Cplasma_ADC*Vplasma
+    
+    Aplasma_ADC  =  integ(dAplasma_ADC, 0.0)
+    Cplasma_ADC  =  Aplasma_ADC/Vplasma
+
+    ! Blood cells (eq 14)
+    dAbc_ADC =  - Qlung_bc*Cbc_ADC ...
+                + Qheart_bc*Cheart_bc_ADC ...
+                + Qkidney_bc*Ckidney_bc_ADC ...
+                + Qbrain_bc*Cbrain_bc_ADC ...
+                + Qmuscle_bc*Cmuscle_bc_ADC ...
+                + Qmarrow_bc*Cmarrow_bc_ADC ...
+                + Qthymus_bc*Cthymus_bc_ADC ...
+                + Qskin_bc*Cskin_bc_ADC ...
+                + Qfat_bc*Cfat_bc_ADC ...
+                + (Qsi_bc + Qli_bc + Qpancreas_bc + Qspleen_bc)*Cliver_bc_ADC ...
+                + Qother_bc*Cother_bc_ADC
+    
+    Abc_ADC  =  integ(dAbc_ADC, 0.0)
+    Cbc_ADC  =  Abc_ADC/Vbc
+    
+    ! Lymph nodes (eq 15)
+    dAlymphnodes_ADC =  (1.0 - sigISlung)*Qlung_lymph*Clung_int_ADC ...
+                        + (1.0 - sigISheart)*Qheart_lymph*Cheart_int_ADC ...
+                        + (1.0 - sigISkidney)*Qkidney_lymph*Ckidney_int_ADC ...
+                        + (1.0 - sigISbrain)*Qbrain_lymph*Cbrain_int_ADC ...
+                        + (1.0 - sigISmuscle)*Qmuscle_lymph*Cmuscle_int_ADC ...
+                        + (1.0 - sigISmarrow)*Qmarrow_lymph*Cmarrow_int_ADC ...
+                        + (1.0 - sigISthymus)*Qthymus_lymph*Cthymus_int_ADC ...
+                        + (1.0 - sigISskin)*Qskin_lymph*Cskin_int_ADC ...
+                        + (1.0 - sigISfat)*Qfat_lymph*Cfat_int_ADC ...
+                        + (1.0 - sigISsi)*Qsi_lymph*Csi_int_ADC ...
+                        + (1.0 - sigISli)*Qli_lymph*Cli_int_ADC ...
+                        + (1.0 - sigISspleen)*Qspleen_lymph*Cspleen_int_ADC ...
+                        + (1.0 - sigISpancreas)*Qpancreas_lymph*Cpancreas_int_ADC ...
+                        + (1.0 - sigISliver)*Qliver_lymph*Cliver_int_ADC ...
+                        + (1.0 - sigISother)*Qother_lymph*Cother_int_ADC ...
+                        - Qlymphnodes_lymph*Clymphnodes_ADC
+    
+    Alymphnodes_ADC  =  integ(dAlymphnodes_ADC, 0.0)
+    Clymphnodes_ADC  =  Alymphnodes_ADC/Vlymphnodes
+
+    ! Liver compartment --------------------------------------------------------
+    
+    ! Blood cells (eq 16)
+    dAliver_bc_ADC =    Qliver_bc*Clung_bc_ADC ...
+                        + Qsi_bc*Csi_bc_ADC ...
+                        + Qli_bc*Cli_bc_ADC ...
+                        + Qspleen_bc*Cspleen_bc_ADC ...
+                        + Qpancreas_bc*Cpancreas_bc_ADC ...
+                        - (Qliver_bc + Qsi_bc + Qli_bc + Qspleen_bc + Qpancreas_bc)*Cliver_bc_ADC
+                        
+    Aliver_bc_ADC = integ(dAliver_bc_ADC, 0.0)
+    Cliver_bc_ADC = Aliver_bc_ADC/Vliver_bc
+    
+    ! Plasma (eq 17)
+    dAliver_plas_ADC =  Qliver_plas*Clung_plas_ADC ...
+                        + (Qsi_plas - Qsi_lymph)*Csi_plas_ADC ...
+                        + (Qli_plas - Qli_lymph)*Cli_plas_ADC ...
+                        + (Qspleen_plas - Qspleen_lymph)*Cspleen_plas_ADC ...
+                        + (Qpancreas_plas - Qpancreas_lymph)*Cpancreas_plas_ADC ...
+                        - ((Qliver_plas - Qliver_lymph) + (Qsi_plas - Qsi_lymph) ...
+                            + (Qli_plas - Qli_lymph) + (Qspleen_plas - Qspleen_lymph) ...
+                            + (Qpancreas_plas - Qpancreas_lymph))*Cliver_plas_ADC ...
+                        - ((1.0 - sigVliver)*Qliver_lymph*Cliver_plas_ADC) ...
+                        - CLup_liver*Cliver_plas_ADC ...
+                        + CLup_liver*FR*Cliver_endo_bADC ...
+                        - Kdec*Cliver_plas_ADC*Vliver_plas
+    
+    Aliver_plas_ADC = integ(dAliver_plas_ADC, 0.0)
+    Cliver_plas_ADC = Aliver_plas_ADC/Vliver_plas
+    
+    ! Endosomal unbound ADCs (eq 18)
+    dAliver_endo_uADC = CLup_liver*Cliver_plas_ADC ...
+                        + CLup_liver*Cliver_int_ADC ...
+                        - Vliver_endo*Kon*Cliver_endo_uADC*Cliver_FcRn ...
+                        + Vliver_endo*Koff*Cliver_endo_bADC ...
+                        - Kdeg*Cliver_endo_uADC*Vliver_endo
+    
+    Aliver_endo_uADC = integ(dAliver_endo_uADC, 0.0)
+    Cliver_endo_uADC = Aliver_endo_uADC/Vliver_endo
+    
+    ! Endosomal bound ADCs (eq 19)
+    dAliver_endo_bADC = Vliver_endo*Kon*Cliver_endo_uADC*Cliver_FcRn ...
+                        - Vliver_endo*Koff*Cliver_endo_bADC ...
+                        - CLup_liver*Cliver_endo_bADC
+    
+    Aliver_endo_bADC = integ(dAliver_endo_bADC, 0.0)
+    Cliver_endo_bADC = Aliver_endo_bADC/Vliver_endo
+    
+    ! Interstitial (20)
+    dAliver_int_ADC =   ((1.0 - sigVliver)*Qliver_lymph*Cliver_plas_ADC) ...
+                        - ((1.0 - sigISliver)*Qliver_lymph*Cliver_int_ADC) ...
+                        + CLup_liver*(1.0 - FR)*Cliver_endo_bADC ...
+                        - CLup_liver*Cliver_int_ADC ...
+                        - Kdec*Cliver_endo_bADC*Vliver_int
+    
+    Aliver_int_ADC = integ(dAliver_int_ADC, 0.0)
+    Cliver_int_ADC = Aliver_int_ADC/Vliver_int
+
+    Aliver_FcRn  = integ(dAliver_FcRn, 0.0)
+    Cliver_FcRn  = Aliver_FcRn/Vliver_endo
+    
+    Cliver_tot_ADC = (Aliver_plas_ADC + Aliver_bc_ADC + Aliver_int_ADC ...
+                        + Aliver_endo_bADC + Aliver_endo_uADC)/Vliver
+    
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Heart compartment --------------------------------------------------------
+
+    ! Plasma
+    dAheart_plas_ADC = Qheart_plas*Clung_plas_ADC ...
+                        - (Qheart_plas - Qheart_lymph)*Cheart_plas_ADC ...
+                        - (1.0 - sigVheart)*Qheart_lymph*Cheart_plas_ADC ...
+                        - CLup_heart*Cheart_plas_ADC ...
+                        + CLup_heart*FR*Cheart_endo_bADC ...
+                        - Kdec*Cheart_plas_ADC*Vheart_plas
+    
+    Aheart_plas_ADC  = integ(dAheart_plas_ADC, 0.0)
+    Cheart_plas_ADC = Aheart_plas_ADC/Vheart_plas
+    
+    ! Blood cells
+    dAheart_bc_ADC =   Qheart_bc*Clung_bc_ADC ...
+                        - Qheart_bc*Cheart_bc_ADC
+    
+    Aheart_bc_ADC  = integ(dAheart_bc_ADC, 0.0)
+    Cheart_bc_ADC  = Aheart_bc_ADC/Vheart_bc
+    
+    ! Endosomal, unbound
+    dAheart_endo_uADC =    CLup_heart*Cheart_plas_ADC ...
+                            + CLup_heart*Cheart_int_ADC ...
+                            - Vheart_endo*Kon*Cheart_endo_uADC*Cheart_FcRn ...
+                            + Vheart_endo*Koff*Cheart_endo_bADC ...
+                            - Kdeg*Cheart_endo_uADC*Vheart_endo
+    
+    Aheart_endo_uADC  = integ(dAheart_endo_uADC, 0.0)
+    Cheart_endo_uADC  = Aheart_endo_uADC/Vheart_bc
+    
+    ! Endosomal, bound
+    dAheart_endo_bADC =    Vheart_endo*Kon*Cheart_endo_uADC*Cheart_FcRn ...
+                            - Vheart_endo*Koff*Cheart_endo_bADC ...
+                            - CLup_heart*Cheart_endo_bADC
+    
+    Aheart_endo_bADC  = integ(dAheart_endo_bADC, 0.0)
+    Cheart_endo_bADC  = Aheart_endo_bADC/Vheart_bc
+    
+    ! Interstitial
+    dAheart_int_ADC =  (1.0 - sigVheart)*Qheart_lymph*Cheart_plas_ADC ...
+                        - (1.0 - sigISheart)*Qheart_lymph*Cheart_int_ADC ...
+                        + CLup_heart*(1.0 - FR)*Cheart_endo_bADC ...
+                        - CLup_heart*Cheart_int_ADC ...
+                        - Kdec*Cheart_int_ADC*Vheart_int
+    
+    Aheart_int_ADC  = integ(dAheart_int_ADC, 0.0)
+    Cheart_int_ADC  = Aheart_int_ADC/Vheart_int
+    
+    ! FcRn binding
+    dAheart_FcRn = Koff*Cheart_endo_bADC*Vheart_endo ...
+                    - Kon*Cheart_endo_uADC*Cheart_FcRn*Vheart_endo ...
+                    + CLup_heart*Cheart_endo_bADC
+    
+    Aheart_FcRn  = integ(dAheart_FcRn, Aheart_FcRn0)
+    Cheart_FcRn  = Aheart_FcRn/Vheart_endo
+    
+    Cheart_tot_ADC = (Aheart_plas_ADC + Aheart_bc_ADC + Aheart_int_ADC ...
+                        + Aheart_endo_bADC + Aheart_endo_uADC)/Vheart
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Kidney compartment -------------------------------------------------------
+    
+    ! Plasma
+    dAkidney_plas_ADC = Qkidney_plas*Clung_plas_ADC ...
+                        - (Qkidney_plas - Qkidney_lymph)*Ckidney_plas_ADC ...
+                        - (1.0 - sigVkidney)*Qkidney_lymph*Ckidney_plas_ADC ...
+                        - CLup_kidney*Ckidney_plas_ADC ...
+                        + CLup_kidney*FR*Ckidney_endo_bADC ...
+                        - Kdec*Ckidney_plas_ADC*Vkidney_plas
+    
+    Akidney_plas_ADC  = integ(dAkidney_plas_ADC, 0.0)
+    Ckidney_plas_ADC = Akidney_plas_ADC/Vkidney_plas
+    
+    ! Blood cells
+    dAkidney_bc_ADC =   Qkidney_bc*Clung_bc_ADC ...
+                        - Qkidney_bc*Ckidney_bc_ADC
+    
+    Akidney_bc_ADC  = integ(dAkidney_bc_ADC, 0.0)
+    Ckidney_bc_ADC  = Akidney_bc_ADC/Vkidney_bc
+    
+    ! Endosomal, unbound
+    dAkidney_endo_uADC =    CLup_kidney*Ckidney_plas_ADC ...
+                            + CLup_kidney*Ckidney_int_ADC ...
+                            - Vkidney_endo*Kon*Ckidney_endo_uADC*Ckidney_FcRn ...
+                            + Vkidney_endo*Koff*Ckidney_endo_bADC ...
+                            - Kdeg*Ckidney_endo_uADC*Vkidney_endo
+    
+    Akidney_endo_uADC  = integ(dAkidney_endo_uADC, 0.0)
+    Ckidney_endo_uADC  = Akidney_endo_uADC/Vkidney_bc
+    
+    ! Endosomal, bound
+    dAkidney_endo_bADC =    Vkidney_endo*Kon*Ckidney_endo_uADC*Ckidney_FcRn ...
+                            - Vkidney_endo*Koff*Ckidney_endo_bADC ...
+                            - CLup_kidney*Ckidney_endo_bADC
+    
+    Akidney_endo_bADC  = integ(dAkidney_endo_bADC, 0.0)
+    Ckidney_endo_bADC  = Akidney_endo_bADC/Vkidney_bc
+    
+    ! Interstitial
+    dAkidney_int_ADC =  (1.0 - sigVkidney)*Qkidney_lymph*Ckidney_plas_ADC ...
+                        - (1.0 - sigISkidney)*Qkidney_lymph*Ckidney_int_ADC ...
+                        + CLup_kidney*(1.0 - FR)*Ckidney_endo_bADC ...
+                        - CLup_kidney*Ckidney_int_ADC ...
+                        - Kdec*Ckidney_int_ADC*Vkidney_int
+    
+    Akidney_int_ADC  = integ(dAkidney_int_ADC, 0.0)
+    Ckidney_int_ADC  = Akidney_int_ADC/Vkidney_int
+    
+    ! FcRn binding
+    dAkidney_FcRn = Koff*Ckidney_endo_bADC*Vkidney_endo ...
+                    - Kon*Ckidney_endo_uADC*Ckidney_FcRn*Vkidney_endo ...
+                    + CLup_kidney*Ckidney_endo_bADC
+    
+    Akidney_FcRn  = integ(dAkidney_FcRn, Akidney_FcRn0)
+    Ckidney_FcRn  = Akidney_FcRn/Vkidney_endo
+    
+    Ckidney_tot_ADC = (Akidney_plas_ADC + Akidney_bc_ADC + Akidney_int_ADC ...
+                        + Akidney_endo_bADC + Akidney_endo_uADC)/Vkidney
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Muscle compartment -------------------------------------------------------
+
+    ! Plasma
+    dAmuscle_plas_ADC = Qmuscle_plas*Clung_plas_ADC ...
+                        - (Qmuscle_plas - Qmuscle_lymph)*Cmuscle_plas_ADC ...
+                        - (1.0 - sigVmuscle)*Qmuscle_lymph*Cmuscle_plas_ADC ...
+                        - CLup_muscle*Cmuscle_plas_ADC ...
+                        + CLup_muscle*FR*Cmuscle_endo_bADC ...
+                        - Kdec*Cmuscle_plas_ADC*Vmuscle_plas
+    
+    Amuscle_plas_ADC  = integ(dAmuscle_plas_ADC, 0.0)
+    Cmuscle_plas_ADC = Amuscle_plas_ADC/Vmuscle_plas
+    
+    ! Blood cells
+    dAmuscle_bc_ADC =   Qmuscle_bc*Clung_bc_ADC ...
+                        - Qmuscle_bc*Cmuscle_bc_ADC
+    
+    Amuscle_bc_ADC  = integ(dAmuscle_bc_ADC, 0.0)
+    Cmuscle_bc_ADC  = Amuscle_bc_ADC/Vmuscle_bc
+    
+    ! Endosomal, unbound
+    dAmuscle_endo_uADC =    CLup_muscle*Cmuscle_plas_ADC ...
+                            + CLup_muscle*Cmuscle_int_ADC ...
+                            - Vmuscle_endo*Kon*Cmuscle_endo_uADC*Cmuscle_FcRn ...
+                            + Vmuscle_endo*Koff*Cmuscle_endo_bADC ...
+                            - Kdeg*Cmuscle_endo_uADC*Vmuscle_endo
+    
+    Amuscle_endo_uADC  = integ(dAmuscle_endo_uADC, 0.0)
+    Cmuscle_endo_uADC  = Amuscle_endo_uADC/Vmuscle_bc
+    
+    ! Endosomal, bound
+    dAmuscle_endo_bADC =    Vmuscle_endo*Kon*Cmuscle_endo_uADC*Cmuscle_FcRn ...
+                            - Vmuscle_endo*Koff*Cmuscle_endo_bADC ...
+                            - CLup_muscle*Cmuscle_endo_bADC
+    
+    Amuscle_endo_bADC  = integ(dAmuscle_endo_bADC, 0.0)
+    Cmuscle_endo_bADC  = Amuscle_endo_bADC/Vmuscle_bc
+    
+    ! Interstitial
+    dAmuscle_int_ADC =  (1.0 - sigVmuscle)*Qmuscle_lymph*Cmuscle_plas_ADC ...
+                        - (1.0 - sigISmuscle)*Qmuscle_lymph*Cmuscle_int_ADC ...
+                        + CLup_muscle*(1.0 - FR)*Cmuscle_endo_bADC ...
+                        - CLup_muscle*Cmuscle_int_ADC ...
+                        - Kdec*Cmuscle_int_ADC*Vmuscle_int
+    
+    Amuscle_int_ADC  = integ(dAmuscle_int_ADC, 0.0)
+    Cmuscle_int_ADC  = Amuscle_int_ADC/Vmuscle_int
+    
+    ! FcRn binding
+    dAmuscle_FcRn = Koff*Cmuscle_endo_bADC*Vmuscle_endo ...
+                    - Kon*Cmuscle_endo_uADC*Cmuscle_FcRn*Vmuscle_endo ...
+                    + CLup_muscle*Cmuscle_endo_bADC
+    
+    Amuscle_FcRn  = integ(dAmuscle_FcRn, Amuscle_FcRn0)
+    Cmuscle_FcRn  = Amuscle_FcRn/Vmuscle_endo
+    
+    Cmuscle_tot_ADC = (Amuscle_plas_ADC + Amuscle_bc_ADC + Amuscle_int_ADC ...
+                        + Amuscle_endo_bADC + Amuscle_endo_uADC)/Vmuscle
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Skin compartment ---------------------------------------------------------
+
+    ! Plasma
+    dAskin_plas_ADC = Qskin_plas*Clung_plas_ADC ...
+                        - (Qskin_plas - Qskin_lymph)*Cskin_plas_ADC ...
+                        - (1.0 - sigVskin)*Qskin_lymph*Cskin_plas_ADC ...
+                        - CLup_skin*Cskin_plas_ADC ...
+                        + CLup_skin*FR*Cskin_endo_bADC ...
+                        - Kdec*Cskin_plas_ADC*Vskin_plas
+    
+    Askin_plas_ADC  = integ(dAskin_plas_ADC, 0.0)
+    Cskin_plas_ADC = Askin_plas_ADC/Vskin_plas
+    
+    ! Blood cells
+    dAskin_bc_ADC =   Qskin_bc*Clung_bc_ADC ...
+                        - Qskin_bc*Cskin_bc_ADC
+    
+    Askin_bc_ADC  = integ(dAskin_bc_ADC, 0.0)
+    Cskin_bc_ADC  = Askin_bc_ADC/Vskin_bc
+    
+    ! Endosomal, unbound
+    dAskin_endo_uADC =    CLup_skin*Cskin_plas_ADC ...
+                            + CLup_skin*Cskin_int_ADC ...
+                            - Vskin_endo*Kon*Cskin_endo_uADC*Cskin_FcRn ...
+                            + Vskin_endo*Koff*Cskin_endo_bADC ...
+                            - Kdeg*Cskin_endo_uADC*Vskin_endo
+    
+    Askin_endo_uADC  = integ(dAskin_endo_uADC, 0.0)
+    Cskin_endo_uADC  = Askin_endo_uADC/Vskin_bc
+    
+    ! Endosomal, bound
+    dAskin_endo_bADC =    Vskin_endo*Kon*Cskin_endo_uADC*Cskin_FcRn ...
+                            - Vskin_endo*Koff*Cskin_endo_bADC ...
+                            - CLup_skin*Cskin_endo_bADC
+    
+    Askin_endo_bADC  = integ(dAskin_endo_bADC, 0.0)
+    Cskin_endo_bADC  = Askin_endo_bADC/Vskin_bc
+    
+    ! Interstitial
+    dAskin_int_ADC =  (1.0 - sigVskin)*Qskin_lymph*Cskin_plas_ADC ...
+                        - (1.0 - sigISskin)*Qskin_lymph*Cskin_int_ADC ...
+                        + CLup_skin*(1.0 - FR)*Cskin_endo_bADC ...
+                        - CLup_skin*Cskin_int_ADC ...
+                        - Kdec*Cskin_int_ADC*Vskin_int
+    
+    Askin_int_ADC  = integ(dAskin_int_ADC, 0.0)
+    Cskin_int_ADC  = Askin_int_ADC/Vskin_int
+    
+    ! FcRn binding
+    dAskin_FcRn = Koff*Cskin_endo_bADC*Vskin_endo ...
+                    - Kon*Cskin_endo_uADC*Cskin_FcRn*Vskin_endo ...
+                    + CLup_skin*Cskin_endo_bADC
+    
+    Askin_FcRn  = integ(dAskin_FcRn, Askin_FcRn0)
+    Cskin_FcRn  = Askin_FcRn/Vskin_endo
+    
+    Cskin_tot_ADC = (Askin_plas_ADC + Askin_bc_ADC + Askin_int_ADC ...
+                        + Askin_endo_bADC + Askin_endo_uADC)/Vskin
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Brain compartment --------------------------------------------------------
+
+    ! Plasma
+    dAbrain_plas_ADC = Qbrain_plas*Clung_plas_ADC ...
+                        - (Qbrain_plas - Qbrain_lymph)*Cbrain_plas_ADC ...
+                        - (1.0 - sigVbrain)*Qbrain_lymph*Cbrain_plas_ADC ...
+                        - CLup_brain*Cbrain_plas_ADC ...
+                        + CLup_brain*FR*Cbrain_endo_bADC ...
+                        - Kdec*Cbrain_plas_ADC*Vbrain_plas
+    
+    Abrain_plas_ADC  = integ(dAbrain_plas_ADC, 0.0)
+    Cbrain_plas_ADC = Abrain_plas_ADC/Vbrain_plas
+    
+    ! Blood cells
+    dAbrain_bc_ADC =   Qbrain_bc*Clung_bc_ADC ...
+                        - Qbrain_bc*Cbrain_bc_ADC
+    
+    Abrain_bc_ADC  = integ(dAbrain_bc_ADC, 0.0)
+    Cbrain_bc_ADC  = Abrain_bc_ADC/Vbrain_bc
+    
+    ! Endosomal, unbound
+    dAbrain_endo_uADC =    CLup_brain*Cbrain_plas_ADC ...
+                            + CLup_brain*Cbrain_int_ADC ...
+                            - Vbrain_endo*Kon*Cbrain_endo_uADC*Cbrain_FcRn ...
+                            + Vbrain_endo*Koff*Cbrain_endo_bADC ...
+                            - Kdeg*Cbrain_endo_uADC*Vbrain_endo
+    
+    Abrain_endo_uADC  = integ(dAbrain_endo_uADC, 0.0)
+    Cbrain_endo_uADC  = Abrain_endo_uADC/Vbrain_bc
+    
+    ! Endosomal, bound
+    dAbrain_endo_bADC =    Vbrain_endo*Kon*Cbrain_endo_uADC*Cbrain_FcRn ...
+                            - Vbrain_endo*Koff*Cbrain_endo_bADC ...
+                            - CLup_brain*Cbrain_endo_bADC
+    
+    Abrain_endo_bADC  = integ(dAbrain_endo_bADC, 0.0)
+    Cbrain_endo_bADC  = Abrain_endo_bADC/Vbrain_bc
+    
+    ! Interstitial
+    dAbrain_int_ADC =  (1.0 - sigVbrain)*Qbrain_lymph*Cbrain_plas_ADC ...
+                        - (1.0 - sigISbrain)*Qbrain_lymph*Cbrain_int_ADC ...
+                        + CLup_brain*(1.0 - FR)*Cbrain_endo_bADC ...
+                        - CLup_brain*Cbrain_int_ADC ...
+                        - Kdec*Cbrain_int_ADC*Vbrain_int
+    
+    Abrain_int_ADC  = integ(dAbrain_int_ADC, 0.0)
+    Cbrain_int_ADC  = Abrain_int_ADC/Vbrain_int
+    
+    ! FcRn binding
+    dAbrain_FcRn = Koff*Cbrain_endo_bADC*Vbrain_endo ...
+                    - Kon*Cbrain_endo_uADC*Cbrain_FcRn*Vbrain_endo ...
+                    + CLup_brain*Cbrain_endo_bADC
+    
+    Abrain_FcRn  = integ(dAbrain_FcRn, Abrain_FcRn0)
+    Cbrain_FcRn  = Abrain_FcRn/Vbrain_endo
+    
+    Cbrain_tot_ADC = (Abrain_plas_ADC + Abrain_bc_ADC + Abrain_int_ADC ...
+                        + Abrain_endo_bADC + Abrain_endo_uADC)/Vbrain
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Adipose compartment ------------------------------------------------------
+
+    ! Plasma
+    dAfat_plas_ADC = Qfat_plas*Clung_plas_ADC ...
+                        - (Qfat_plas - Qfat_lymph)*Cfat_plas_ADC ...
+                        - (1.0 - sigVfat)*Qfat_lymph*Cfat_plas_ADC ...
+                        - CLup_fat*Cfat_plas_ADC ...
+                        + CLup_fat*FR*Cfat_endo_bADC ...
+                        - Kdec*Cfat_plas_ADC*Vfat_plas
+    
+    Afat_plas_ADC  = integ(dAfat_plas_ADC, 0.0)
+    Cfat_plas_ADC = Afat_plas_ADC/Vfat_plas
+    
+    ! Blood cells
+    dAfat_bc_ADC =   Qfat_bc*Clung_bc_ADC ...
+                        - Qfat_bc*Cfat_bc_ADC
+    
+    Afat_bc_ADC  = integ(dAfat_bc_ADC, 0.0)
+    Cfat_bc_ADC  = Afat_bc_ADC/Vfat_bc
+    
+    ! Endosomal, unbound
+    dAfat_endo_uADC =    CLup_fat*Cfat_plas_ADC ...
+                            + CLup_fat*Cfat_int_ADC ...
+                            - Vfat_endo*Kon*Cfat_endo_uADC*Cfat_FcRn ...
+                            + Vfat_endo*Koff*Cfat_endo_bADC ...
+                            - Kdeg*Cfat_endo_uADC*Vfat_endo
+    
+    Afat_endo_uADC  = integ(dAfat_endo_uADC, 0.0)
+    Cfat_endo_uADC  = Afat_endo_uADC/Vfat_bc
+    
+    ! Endosomal, bound
+    dAfat_endo_bADC =    Vfat_endo*Kon*Cfat_endo_uADC*Cfat_FcRn ...
+                            - Vfat_endo*Koff*Cfat_endo_bADC ...
+                            - CLup_fat*Cfat_endo_bADC
+    
+    Afat_endo_bADC  = integ(dAfat_endo_bADC, 0.0)
+    Cfat_endo_bADC  = Afat_endo_bADC/Vfat_bc
+    
+    ! Interstitial
+    dAfat_int_ADC =  (1.0 - sigVfat)*Qfat_lymph*Cfat_plas_ADC ...
+                        - (1.0 - sigISfat)*Qfat_lymph*Cfat_int_ADC ...
+                        + CLup_fat*(1.0 - FR)*Cfat_endo_bADC ...
+                        - CLup_fat*Cfat_int_ADC ...
+                        - Kdec*Cfat_int_ADC*Vfat_int
+    
+    Afat_int_ADC  = integ(dAfat_int_ADC, 0.0)
+    Cfat_int_ADC  = Afat_int_ADC/Vfat_int
+    
+    ! FcRn binding
+    dAfat_FcRn = Koff*Cfat_endo_bADC*Vfat_endo ...
+                    - Kon*Cfat_endo_uADC*Cfat_FcRn*Vfat_endo ...
+                    + CLup_fat*Cfat_endo_bADC
+    
+    Afat_FcRn  = integ(dAfat_FcRn, Afat_FcRn0)
+    Cfat_FcRn  = Afat_FcRn/Vfat_endo
+    
+    Cfat_tot_ADC = (Afat_plas_ADC + Afat_bc_ADC + Afat_int_ADC ...
+                        + Afat_endo_bADC + Afat_endo_uADC)/Vfat
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Thymus compartment -------------------------------------------------------
+
+    ! Plasma
+    dAthymus_plas_ADC = Qthymus_plas*Clung_plas_ADC ...
+                        - (Qthymus_plas - Qthymus_lymph)*Cthymus_plas_ADC ...
+                        - (1.0 - sigVthymus)*Qthymus_lymph*Cthymus_plas_ADC ...
+                        - CLup_thymus*Cthymus_plas_ADC ...
+                        + CLup_thymus*FR*Cthymus_endo_bADC ...
+                        - Kdec*Cthymus_plas_ADC*Vthymus_plas
+    
+    Athymus_plas_ADC  = integ(dAthymus_plas_ADC, 0.0)
+    Cthymus_plas_ADC = Athymus_plas_ADC/Vthymus_plas
+    
+    ! Blood cells
+    dAthymus_bc_ADC =   Qthymus_bc*Clung_bc_ADC ...
+                        - Qthymus_bc*Cthymus_bc_ADC
+    
+    Athymus_bc_ADC  = integ(dAthymus_bc_ADC, 0.0)
+    Cthymus_bc_ADC  = Athymus_bc_ADC/Vthymus_bc
+    
+    ! Endosomal, unbound
+    dAthymus_endo_uADC =    CLup_thymus*Cthymus_plas_ADC ...
+                            + CLup_thymus*Cthymus_int_ADC ...
+                            - Vthymus_endo*Kon*Cthymus_endo_uADC*Cthymus_FcRn ...
+                            + Vthymus_endo*Koff*Cthymus_endo_bADC ...
+                            - Kdeg*Cthymus_endo_uADC*Vthymus_endo
+    
+    Athymus_endo_uADC  = integ(dAthymus_endo_uADC, 0.0)
+    Cthymus_endo_uADC  = Athymus_endo_uADC/Vthymus_bc
+    
+    ! Endosomal, bound
+    dAthymus_endo_bADC =    Vthymus_endo*Kon*Cthymus_endo_uADC*Cthymus_FcRn ...
+                            - Vthymus_endo*Koff*Cthymus_endo_bADC ...
+                            - CLup_thymus*Cthymus_endo_bADC
+    
+    Athymus_endo_bADC  = integ(dAthymus_endo_bADC, 0.0)
+    Cthymus_endo_bADC  = Athymus_endo_bADC/Vthymus_bc
+    
+    ! Interstitial
+    dAthymus_int_ADC =  (1.0 - sigVthymus)*Qthymus_lymph*Cthymus_plas_ADC ...
+                        - (1.0 - sigISthymus)*Qthymus_lymph*Cthymus_int_ADC ...
+                        + CLup_thymus*(1.0 - FR)*Cthymus_endo_bADC ...
+                        - CLup_thymus*Cthymus_int_ADC ...
+                        - Kdec*Cthymus_int_ADC*Vthymus_int
+    
+    Athymus_int_ADC  = integ(dAthymus_int_ADC, 0.0)
+    Cthymus_int_ADC  = Athymus_int_ADC/Vthymus_int
+    
+    ! FcRn binding
+    dAthymus_FcRn = Koff*Cthymus_endo_bADC*Vthymus_endo ...
+                    - Kon*Cthymus_endo_uADC*Cthymus_FcRn*Vthymus_endo ...
+                    + CLup_thymus*Cthymus_endo_bADC
+    
+    Athymus_FcRn  = integ(dAthymus_FcRn, Athymus_FcRn0)
+    Cthymus_FcRn  = Athymus_FcRn/Vthymus_endo
+    
+    Cthymus_tot_ADC = (Athymus_plas_ADC + Athymus_bc_ADC + Athymus_int_ADC ...
+                        + Athymus_endo_bADC + Athymus_endo_uADC)/Vthymus
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Bone compartment ---------------------------------------------------------
+
+    ! Plasma
+    dAmarrow_plas_ADC = Qmarrow_plas*Clung_plas_ADC ...
+                        - (Qmarrow_plas - Qmarrow_lymph)*Cmarrow_plas_ADC ...
+                        - (1.0 - sigVmarrow)*Qmarrow_lymph*Cmarrow_plas_ADC ...
+                        - CLup_marrow*Cmarrow_plas_ADC ...
+                        + CLup_marrow*FR*Cmarrow_endo_bADC ...
+                        - Kdec*Cmarrow_plas_ADC*Vmarrow_plas
+    
+    Amarrow_plas_ADC  = integ(dAmarrow_plas_ADC, 0.0)
+    Cmarrow_plas_ADC = Amarrow_plas_ADC/Vmarrow_plas
+    
+    ! Blood cells
+    dAmarrow_bc_ADC =   Qmarrow_bc*Clung_bc_ADC ...
+                        - Qmarrow_bc*Cmarrow_bc_ADC
+    
+    Amarrow_bc_ADC  = integ(dAmarrow_bc_ADC, 0.0)
+    Cmarrow_bc_ADC  = Amarrow_bc_ADC/Vmarrow_bc
+    
+    ! Endosomal, unbound
+    dAmarrow_endo_uADC =    CLup_marrow*Cmarrow_plas_ADC ...
+                            + CLup_marrow*Cmarrow_int_ADC ...
+                            - Vmarrow_endo*Kon*Cmarrow_endo_uADC*Cmarrow_FcRn ...
+                            + Vmarrow_endo*Koff*Cmarrow_endo_bADC ...
+                            - Kdeg*Cmarrow_endo_uADC*Vmarrow_endo
+    
+    Amarrow_endo_uADC  = integ(dAmarrow_endo_uADC, 0.0)
+    Cmarrow_endo_uADC  = Amarrow_endo_uADC/Vmarrow_bc
+    
+    ! Endosomal, bound
+    dAmarrow_endo_bADC =    Vmarrow_endo*Kon*Cmarrow_endo_uADC*Cmarrow_FcRn ...
+                            - Vmarrow_endo*Koff*Cmarrow_endo_bADC ...
+                            - CLup_marrow*Cmarrow_endo_bADC
+    
+    Amarrow_endo_bADC  = integ(dAmarrow_endo_bADC, 0.0)
+    Cmarrow_endo_bADC  = Amarrow_endo_bADC/Vmarrow_bc
+    
+    ! Interstitial
+    dAmarrow_int_ADC =  (1.0 - sigVmarrow)*Qmarrow_lymph*Cmarrow_plas_ADC ...
+                        - (1.0 - sigISmarrow)*Qmarrow_lymph*Cmarrow_int_ADC ...
+                        + CLup_marrow*(1.0 - FR)*Cmarrow_endo_bADC ...
+                        - CLup_marrow*Cmarrow_int_ADC ...
+                        - Kdec*Cmarrow_int_ADC*Vmarrow_int
+    
+    Amarrow_int_ADC  = integ(dAmarrow_int_ADC, 0.0)
+    Cmarrow_int_ADC  = Amarrow_int_ADC/Vmarrow_int
+    
+    ! FcRn binding
+    dAmarrow_FcRn = Koff*Cmarrow_endo_bADC*Vmarrow_endo ...
+                    - Kon*Cmarrow_endo_uADC*Cmarrow_FcRn*Vmarrow_endo ...
+                    + CLup_marrow*Cmarrow_endo_bADC
+    
+    Amarrow_FcRn  = integ(dAmarrow_FcRn, Amarrow_FcRn0)
+    Cmarrow_FcRn  = Amarrow_FcRn/Vmarrow_endo
+    
+    Cmarrow_tot_ADC = (Amarrow_plas_ADC + Amarrow_bc_ADC + Amarrow_int_ADC ...
+                        + Amarrow_endo_bADC + Amarrow_endo_uADC)/Vmarrow
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Other compartment --------------------------------------------------------
+
+    ! Plasma
+    dAother_plas_ADC = Qother_plas*Clung_plas_ADC ...
+                        - (Qother_plas - Qother_lymph)*Cother_plas_ADC ...
+                        - (1.0 - sigVother)*Qother_lymph*Cother_plas_ADC ...
+                        - CLup_other*Cother_plas_ADC ...
+                        + CLup_other*FR*Cother_endo_bADC ...
+                        - Kdec*Cother_plas_ADC*Vother_plas
+    
+    Aother_plas_ADC  = integ(dAother_plas_ADC, 0.0)
+    Cother_plas_ADC = Aother_plas_ADC/Vother_plas
+    
+    ! Blood cells
+    dAother_bc_ADC =   Qother_bc*Clung_bc_ADC ...
+                        - Qother_bc*Cother_bc_ADC
+    
+    Aother_bc_ADC  = integ(dAother_bc_ADC, 0.0)
+    Cother_bc_ADC  = Aother_bc_ADC/Vother_bc
+    
+    ! Endosomal, unbound
+    dAother_endo_uADC =    CLup_other*Cother_plas_ADC ...
+                            + CLup_other*Cother_int_ADC ...
+                            - Vother_endo*Kon*Cother_endo_uADC*Cother_FcRn ...
+                            + Vother_endo*Koff*Cother_endo_bADC ...
+                            - Kdeg*Cother_endo_uADC*Vother_endo
+    
+    Aother_endo_uADC  = integ(dAother_endo_uADC, 0.0)
+    Cother_endo_uADC  = Aother_endo_uADC/Vother_bc
+    
+    ! Endosomal, bound
+    dAother_endo_bADC =    Vother_endo*Kon*Cother_endo_uADC*Cother_FcRn ...
+                            - Vother_endo*Koff*Cother_endo_bADC ...
+                            - CLup_other*Cother_endo_bADC
+    
+    Aother_endo_bADC  = integ(dAother_endo_bADC, 0.0)
+    Cother_endo_bADC  = Aother_endo_bADC/Vother_bc
+    
+    ! Interstitial
+    dAother_int_ADC =  (1.0 - sigVother)*Qother_lymph*Cother_plas_ADC ...
+                        - (1.0 - sigISother)*Qother_lymph*Cother_int_ADC ...
+                        + CLup_other*(1.0 - FR)*Cother_endo_bADC ...
+                        - CLup_other*Cother_int_ADC ...
+                        - Kdec*Cother_int_ADC*Vother_int
+    
+    Aother_int_ADC  = integ(dAother_int_ADC, 0.0)
+    Cother_int_ADC  = Aother_int_ADC/Vother_int
+    
+    ! FcRn binding
+    dAother_FcRn = Koff*Cother_endo_bADC*Vother_endo ...
+                    - Kon*Cother_endo_uADC*Cother_FcRn*Vother_endo ...
+                    + CLup_other*Cother_endo_bADC
+    
+    Aother_FcRn  = integ(dAother_FcRn, Aother_FcRn0)
+    Cother_FcRn  = Aother_FcRn/Vother_endo
+    
+    Cother_tot_ADC = (Aother_plas_ADC + Aother_bc_ADC + Aother_int_ADC ...
+                        + Aother_endo_bADC + Aother_endo_uADC)/Vother
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Small intestine compartment ----------------------------------------------
+    
+    ! Plasma
+    dAsi_plas_ADC = Qsi_plas*Clung_plas_ADC ...
+                        - (Qsi_plas - Qsi_lymph)*Csi_plas_ADC ...
+                        - (1.0 - sigVsi)*Qsi_lymph*Csi_plas_ADC ...
+                        - CLup_si*Csi_plas_ADC ...
+                        + CLup_si*FR*Csi_endo_bADC ...
+                        - Kdec*Csi_plas_ADC*Vsi_plas
+    
+    Asi_plas_ADC  = integ(dAsi_plas_ADC, 0.0)
+    Csi_plas_ADC = Asi_plas_ADC/Vsi_plas
+    
+    ! Blood cells
+    dAsi_bc_ADC =   Qsi_bc*Clung_bc_ADC ...
+                        - Qsi_bc*Csi_bc_ADC
+    
+    Asi_bc_ADC  = integ(dAsi_bc_ADC, 0.0)
+    Csi_bc_ADC  = Asi_bc_ADC/Vsi_bc
+    
+    ! Endosomal, unbound
+    dAsi_endo_uADC =    CLup_si*Csi_plas_ADC ...
+                            + CLup_si*Csi_int_ADC ...
+                            - Vsi_endo*Kon*Csi_endo_uADC*Csi_FcRn ...
+                            + Vsi_endo*Koff*Csi_endo_bADC ...
+                            - Kdeg*Csi_endo_uADC*Vsi_endo
+    
+    Asi_endo_uADC  = integ(dAsi_endo_uADC, 0.0)
+    Csi_endo_uADC  = Asi_endo_uADC/Vsi_bc
+    
+    ! Endosomal, bound
+    dAsi_endo_bADC =    Vsi_endo*Kon*Csi_endo_uADC*Csi_FcRn ...
+                            - Vsi_endo*Koff*Csi_endo_bADC ...
+                            - CLup_si*Csi_endo_bADC
+    
+    Asi_endo_bADC  = integ(dAsi_endo_bADC, 0.0)
+    Csi_endo_bADC  = Asi_endo_bADC/Vsi_bc
+    
+    ! Interstitial
+    dAsi_int_ADC =  (1.0 - sigVsi)*Qsi_lymph*Csi_plas_ADC ...
+                        - (1.0 - sigISsi)*Qsi_lymph*Csi_int_ADC ...
+                        + CLup_si*(1.0 - FR)*Csi_endo_bADC ...
+                        - CLup_si*Csi_int_ADC ...
+                        - Kdec*Csi_int_ADC*Vsi_int
+    
+    Asi_int_ADC  = integ(dAsi_int_ADC, 0.0)
+    Csi_int_ADC  = Asi_int_ADC/Vsi_int
+    
+    ! FcRn binding
+    dAsi_FcRn = Koff*Csi_endo_bADC*Vsi_endo ...
+                    - Kon*Csi_endo_uADC*Csi_FcRn*Vsi_endo ...
+                    + CLup_si*Csi_endo_bADC
+    
+    Asi_FcRn  = integ(dAsi_FcRn, Asi_FcRn0)
+    Csi_FcRn  = Asi_FcRn/Vsi_endo
+    
+    Csi_tot_ADC = (Asi_plas_ADC + Asi_bc_ADC + Asi_int_ADC ...
+                        + Asi_endo_bADC + Asi_endo_uADC)/Vsi
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Large intestine compartment ----------------------------------------------
+
+    ! Plasma
+    dAli_plas_ADC = Qli_plas*Clung_plas_ADC ...
+                        - (Qli_plas - Qli_lymph)*Cli_plas_ADC ...
+                        - (1.0 - sigVli)*Qli_lymph*Cli_plas_ADC ...
+                        - CLup_li*Cli_plas_ADC ...
+                        + CLup_li*FR*Cli_endo_bADC ...
+                        - Kdec*Cli_plas_ADC*Vli_plas
+    
+    Ali_plas_ADC  = integ(dAli_plas_ADC, 0.0)
+    Cli_plas_ADC = Ali_plas_ADC/Vli_plas
+    
+    ! Blood cells
+    dAli_bc_ADC =   Qli_bc*Clung_bc_ADC ...
+                        - Qli_bc*Cli_bc_ADC
+    
+    Ali_bc_ADC  = integ(dAli_bc_ADC, 0.0)
+    Cli_bc_ADC  = Ali_bc_ADC/Vli_bc
+    
+    ! Endosomal, unbound
+    dAli_endo_uADC =    CLup_li*Cli_plas_ADC ...
+                            + CLup_li*Cli_int_ADC ...
+                            - Vli_endo*Kon*Cli_endo_uADC*Cli_FcRn ...
+                            + Vli_endo*Koff*Cli_endo_bADC ...
+                            - Kdeg*Cli_endo_uADC*Vli_endo
+    
+    Ali_endo_uADC  = integ(dAli_endo_uADC, 0.0)
+    Cli_endo_uADC  = Ali_endo_uADC/Vli_bc
+    
+    ! Endosomal, bound
+    dAli_endo_bADC =    Vli_endo*Kon*Cli_endo_uADC*Cli_FcRn ...
+                            - Vli_endo*Koff*Cli_endo_bADC ...
+                            - CLup_li*Cli_endo_bADC
+    
+    Ali_endo_bADC  = integ(dAli_endo_bADC, 0.0)
+    Cli_endo_bADC  = Ali_endo_bADC/Vli_bc
+    
+    ! Interstitial
+    dAli_int_ADC =  (1.0 - sigVli)*Qli_lymph*Cli_plas_ADC ...
+                        - (1.0 - sigISli)*Qli_lymph*Cli_int_ADC ...
+                        + CLup_li*(1.0 - FR)*Cli_endo_bADC ...
+                        - CLup_li*Cli_int_ADC ...
+                        - Kdec*Cli_int_ADC*Vli_int
+    
+    Ali_int_ADC  = integ(dAli_int_ADC, 0.0)
+    Cli_int_ADC  = Ali_int_ADC/Vli_int
+    
+    ! FcRn binding
+    dAli_FcRn = Koff*Cli_endo_bADC*Vli_endo ...
+                    - Kon*Cli_endo_uADC*Cli_FcRn*Vli_endo ...
+                    + CLup_li*Cli_endo_bADC
+    
+    Ali_FcRn  = integ(dAli_FcRn, Ali_FcRn0)
+    Cli_FcRn  = Ali_FcRn/Vli_endo
+    
+    Cli_tot_ADC = (Ali_plas_ADC + Ali_bc_ADC + Ali_int_ADC ...
+                        + Ali_endo_bADC + Ali_endo_uADC)/Vli
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Spleen compartment -------------------------------------------------------
+
+    ! Plasma
+    dAspleen_plas_ADC = Qspleen_plas*Clung_plas_ADC ...
+                        - (Qspleen_plas - Qspleen_lymph)*Cspleen_plas_ADC ...
+                        - (1.0 - sigVspleen)*Qspleen_lymph*Cspleen_plas_ADC ...
+                        - CLup_spleen*Cspleen_plas_ADC ...
+                        + CLup_spleen*FR*Cspleen_endo_bADC ...
+                        - Kdec*Cspleen_plas_ADC*Vspleen_plas
+    
+    Aspleen_plas_ADC  = integ(dAspleen_plas_ADC, 0.0)
+    Cspleen_plas_ADC = Aspleen_plas_ADC/Vspleen_plas
+    
+    ! Blood cells
+    dAspleen_bc_ADC =   Qspleen_bc*Clung_bc_ADC ...
+                        - Qspleen_bc*Cspleen_bc_ADC
+    
+    Aspleen_bc_ADC  = integ(dAspleen_bc_ADC, 0.0)
+    Cspleen_bc_ADC  = Aspleen_bc_ADC/Vspleen_bc
+    
+    ! Endosomal, unbound
+    dAspleen_endo_uADC =    CLup_spleen*Cspleen_plas_ADC ...
+                            + CLup_spleen*Cspleen_int_ADC ...
+                            - Vspleen_endo*Kon*Cspleen_endo_uADC*Cspleen_FcRn ...
+                            + Vspleen_endo*Koff*Cspleen_endo_bADC ...
+                            - Kdeg*Cspleen_endo_uADC*Vspleen_endo
+    
+    Aspleen_endo_uADC  = integ(dAspleen_endo_uADC, 0.0)
+    Cspleen_endo_uADC  = Aspleen_endo_uADC/Vspleen_bc
+    
+    ! Endosomal, bound
+    dAspleen_endo_bADC =    Vspleen_endo*Kon*Cspleen_endo_uADC*Cspleen_FcRn ...
+                            - Vspleen_endo*Koff*Cspleen_endo_bADC ...
+                            - CLup_spleen*Cspleen_endo_bADC
+    
+    Aspleen_endo_bADC  = integ(dAspleen_endo_bADC, 0.0)
+    Cspleen_endo_bADC  = Aspleen_endo_bADC/Vspleen_bc
+    
+    ! Interstitial
+    dAspleen_int_ADC =  (1.0 - sigVspleen)*Qspleen_lymph*Cspleen_plas_ADC ...
+                        - (1.0 - sigISspleen)*Qspleen_lymph*Cspleen_int_ADC ...
+                        + CLup_spleen*(1.0 - FR)*Cspleen_endo_bADC ...
+                        - CLup_spleen*Cspleen_int_ADC ...
+                        - Kdec*Cspleen_int_ADC*Vspleen_int
+    
+    Aspleen_int_ADC  = integ(dAspleen_int_ADC, 0.0)
+    Cspleen_int_ADC  = Aspleen_int_ADC/Vspleen_int
+    
+    ! FcRn binding
+    dAspleen_FcRn = Koff*Cspleen_endo_bADC*Vspleen_endo ...
+                    - Kon*Cspleen_endo_uADC*Cspleen_FcRn*Vspleen_endo ...
+                    + CLup_spleen*Cspleen_endo_bADC
+    
+    Aspleen_FcRn  = integ(dAspleen_FcRn, Aspleen_FcRn0)
+    Cspleen_FcRn  = Aspleen_FcRn/Vspleen_endo
+    
+    Cspleen_tot_ADC = (Aspleen_plas_ADC + Aspleen_bc_ADC + Aspleen_int_ADC ...
+                        + Aspleen_endo_bADC + Aspleen_endo_uADC)/Vspleen
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+    
+    ! Pancreas compartment -----------------------------------------------------
+
+    ! Plasma
+    dApancreas_plas_ADC = Qpancreas_plas*Clung_plas_ADC ...
+                        - (Qpancreas_plas - Qpancreas_lymph)*Cpancreas_plas_ADC ...
+                        - (1.0 - sigVpancreas)*Qpancreas_lymph*Cpancreas_plas_ADC ...
+                        - CLup_pancreas*Cpancreas_plas_ADC ...
+                        + CLup_pancreas*FR*Cpancreas_endo_bADC ...
+                        - Kdec*Cpancreas_plas_ADC*Vpancreas_plas
+    
+    Apancreas_plas_ADC  = integ(dApancreas_plas_ADC, 0.0)
+    Cpancreas_plas_ADC = Apancreas_plas_ADC/Vpancreas_plas
+    
+    ! Blood cells
+    dApancreas_bc_ADC =   Qpancreas_bc*Clung_bc_ADC ...
+                        - Qpancreas_bc*Cpancreas_bc_ADC
+    
+    Apancreas_bc_ADC  = integ(dApancreas_bc_ADC, 0.0)
+    Cpancreas_bc_ADC  = Apancreas_bc_ADC/Vpancreas_bc
+    
+    ! Endosomal, unbound
+    dApancreas_endo_uADC =    CLup_pancreas*Cpancreas_plas_ADC ...
+                            + CLup_pancreas*Cpancreas_int_ADC ...
+                            - Vpancreas_endo*Kon*Cpancreas_endo_uADC*Cpancreas_FcRn ...
+                            + Vpancreas_endo*Koff*Cpancreas_endo_bADC ...
+                            - Kdeg*Cpancreas_endo_uADC*Vpancreas_endo
+    
+    Apancreas_endo_uADC  = integ(dApancreas_endo_uADC, 0.0)
+    Cpancreas_endo_uADC  = Apancreas_endo_uADC/Vpancreas_bc
+    
+    ! Endosomal, bound
+    dApancreas_endo_bADC =    Vpancreas_endo*Kon*Cpancreas_endo_uADC*Cpancreas_FcRn ...
+                            - Vpancreas_endo*Koff*Cpancreas_endo_bADC ...
+                            - CLup_pancreas*Cpancreas_endo_bADC
+    
+    Apancreas_endo_bADC  = integ(dApancreas_endo_bADC, 0.0)
+    Cpancreas_endo_bADC  = Apancreas_endo_bADC/Vpancreas_bc
+    
+    ! Interstitial
+    dApancreas_int_ADC =  (1.0 - sigVpancreas)*Qpancreas_lymph*Cpancreas_plas_ADC ...
+                        - (1.0 - sigISpancreas)*Qpancreas_lymph*Cpancreas_int_ADC ...
+                        + CLup_pancreas*(1.0 - FR)*Cpancreas_endo_bADC ...
+                        - CLup_pancreas*Cpancreas_int_ADC ...
+                        - Kdec*Cpancreas_int_ADC*Vpancreas_int
+    
+    Apancreas_int_ADC  = integ(dApancreas_int_ADC, 0.0)
+    Cpancreas_int_ADC  = Apancreas_int_ADC/Vpancreas_int
+    
+    ! FcRn binding
+    dApancreas_FcRn = Koff*Cpancreas_endo_bADC*Vpancreas_endo ...
+                    - Kon*Cpancreas_endo_uADC*Cpancreas_FcRn*Vpancreas_endo ...
+                    + CLup_pancreas*Cpancreas_endo_bADC
+    
+    Apancreas_FcRn  = integ(dApancreas_FcRn, Apancreas_FcRn0)
+    Cpancreas_FcRn  = Apancreas_FcRn/Vpancreas_endo
+    
+    Cpancreas_tot_ADC = (Apancreas_plas_ADC + Apancreas_bc_ADC + Apancreas_int_ADC ...
+                        + Apancreas_endo_bADC + Apancreas_endo_uADC)/Vpancreas
+
+    ! Cellular
+    !!! TODO: off-target cellular uptake not modeled presently
+
+    ! Lung compartment ---------------------------------------------------------
+
+    ! Plasma
+    dAlung_plas_ADC = (Qlung_plas + Qlung_lymph)*Cplasma_ADC ...
+                        - (Qlung_plas)*Clung_plas_ADC ...
+                        - (1.0 - sigVlung)*Qlung_lymph*Clung_plas_ADC ...
+                        - CLup_lung*Clung_plas_ADC ...
+                        + CLup_lung*FR*Clung_endo_bADC ...
+                        - Kdec*Clung_plas_ADC*Vlung_plas
+    
+    Alung_plas_ADC  = integ(dAlung_plas_ADC, 0.0)
+    Clung_plas_ADC = Alung_plas_ADC/Vlung_plas
+    
+    ! Blood cells
+    dAlung_bc_ADC =   Qlung_bc*Cbc_ADC ...
+                        - Qlung_bc*Clung_bc_ADC
+    
+    Alung_bc_ADC  = integ(dAlung_bc_ADC, 0.0)
+    Clung_bc_ADC  = Alung_bc_ADC/Vlung_bc
+    
+    ! Endosomal, unbound
+    dAlung_endo_uADC =    CLup_lung*Clung_plas_ADC ...
+                            + CLup_lung*Clung_int_ADC ...
+                            - Vlung_endo*Kon*Clung_endo_uADC*Clung_FcRn ...
+                            + Vlung_endo*Koff*Clung_endo_bADC ...
+                            - Kdeg*Clung_endo_uADC*Vlung_endo
+    
+    Alung_endo_uADC  = integ(dAlung_endo_uADC, 0.0)
+    Clung_endo_uADC  = Alung_endo_uADC/Vlung_bc
+    
+    ! Endosomal, bound
+    dAlung_endo_bADC =    Vlung_endo*Kon*Clung_endo_uADC*Clung_FcRn ...
+                            - Vlung_endo*Koff*Clung_endo_bADC ...
+                            - CLup_lung*Clung_endo_bADC
+    
+    Alung_endo_bADC  = integ(dAlung_endo_bADC, 0.0)
+    Clung_endo_bADC  = Alung_endo_bADC/Vlung_bc
+    
+    ! Interstitial
+    dAlung_int_ADC =  (1.0 - sigVlung)*Qlung_lymph*Clung_plas_ADC ...
+                        - (1.0 - sigISlung)*Qlung_lymph*Clung_int_ADC ...
+                        + CLup_lung*(1.0 - FR)*Clung_endo_bADC ...
+                        - CLup_lung*Clung_int_ADC ...
+                        - Kdec*Clung_int_ADC*Vlung_int
+    
+    Alung_int_ADC  = integ(dAlung_int_ADC, 0.0)
+    Clung_int_ADC  = Alung_int_ADC/Vlung_int
+    
+    ! FcRn binding
+    dAlung_FcRn = Koff*Clung_endo_bADC*Vlung_endo ...
+                    - Kon*Clung_endo_uADC*Clung_FcRn*Vlung_endo ...
+                    + CLup_lung*Clung_endo_bADC
+    
+    Alung_FcRn  = integ(dAlung_FcRn, Alung_FcRn0)
+    Clung_FcRn  = Alung_FcRn/Vlung_endo
+    
+    Clung_tot_ADC = (Alung_plas_ADC + Alung_bc_ADC + Alung_int_ADC ...
+                        + Alung_endo_bADC + Alung_endo_uADC)/Vlung
+                        
+    !---------------------------------------------------------------------------
+    ! Tumor - unconjugate drug and ADCs
+    !---------------------------------------------------------------------------
+    
+    ! Free ADC in extracellular matrix
+    dCtumor_freeADC = (2*P_ADC*Rcap/(Rkrogh^2))*(Cplasma_ADC - Ctumor_freeADC/eps_ADC) ...
+                        + (6*D_ADC/(Rtumor^2))*(Cplasma_ADC - Ctumor_freeADC/eps_ADC) ...
+                        - Kon_Ag*Ctumor_freeADC*(Antigen - Ctumor_boundADC) ...
+                        + Koff_Ag*Ctumor_boundADC ...
+                        - Kdec*Ctumor_freeADC
+    
+    Ctumor_freeADC = integ(dCtumor_freeADC, 0.0)
+    
+    ! Bound ADC in extracellular matrix
+    dCtumor_boundADC =  Kon_Ag*(Ctumor_freeADC/eps_ADC)*(Antigen - Ctumor_boundADC) ...
+                        - Koff_Ag*Ctumor_boundADC ...
+                        - Kint_Ag*Ctumor_boundADC ...
+                        - Kdec*Ctumor_boundADC
+    
+    Ctumor_boundADC = integ(dCtumor_boundADC, 0.0)
+    
+    ! Unconjugated drug in extracellular matrix
+    dCtumor_freeUD_ext =    (2*P_UD*Rcap/(Rkrogh^2))*(Cplasma_UD - Ctumor_freeUD_ext/eps_UD) ...
+                            + (6*D_UD/(Rtumor^2))*(Cplasma_UD - Ctumor_freeUD_ext/eps_UD) ...
+                            - Kin_UD*Ctumor_freeUD_ext ...
+                            + Kout_UD*Ctumor_freeUD_cell ...
+                            + DAR*Kdec*(Ctumor_freeADC + Ctumor_boundADC)
+    
+    Ctumor_freeUD_ext = integ(dCtumor_freeUD_ext, 0.0)
+    
+    ! Unconjugated drug in cellular compartment
+    dCtumor_freeUD_cell =   Kin_UD*DAR*Ctumor_boundADC ...
+                            - Kout_UD*Ctumor_freeUD_cell ...
+                            + Kin_UD*Ctumor_freeUD_ext ...
+                            - Kon_tn*Ctumor_freeUD_cell*(Tubulin - Ctumor_boundUD_tubulin) ...
+                            - Koff_tn*Ctumor_boundUD_tubulin
+    
+    Ctumor_freeUD_cell = integ(dCtumor_freeUD_cell, 0.0)
+
+    ! Tubulin-bound unconjugated drug in cellular compartment
+    dCtumor_boundUD_tubulin =   Kon_tn*Ctumor_freeUD_cell*(Tubulin - Ctumor_boundUD_tubulin) ...
+                                - Koff_tn*Ctumor_boundUD_tubulin
+                                
+    Ctumor_boundUD_tubulin = integ(dCtumor_boundUD_tubulin, 0.0)                            
+    
+    ! Change in DAR
+    dDAR = -Kdec*DAR
+    DAR = integ(dDAR, DAR0)
+
+    !---------------------------------------------------------------------------
+    ! Toxicity PD model (thrombocytopenia and neutropenia)
+    !---------------------------------------------------------------------------
+    
+    Conc = Cplasma_UD
+    constant gamma = 0.1
+    constant slope = 0.01
+    
+    constant Ktr   = 0.15
+    constant Kprol = 0.15
+    constant Kcirc = 0.15
+    
+    constant Circ0   = 1.0
+    constant Prol0   = 1.0
+    constant Trans10 = 1.0
+    constant Trans20 = 1.0
+    constant Trans30 = 1.0
+    
+    ! Proliferative cells
+    dProl = Kprol*(1.0 - slope*Conc)*((Circ0/Circ)^gamma) - Ktr*Prol
+    Prol = integ(dProl, Prol0)
+    
+    ! Transit compartment 1
+    dTrans1 = Ktr*(Prol - Trans1)
+    Trans1 = integ(dTrans1, Trans10)
+
+    ! Transit compartment 2
+    dTrans2 = Ktr*(Trans1 - Trans2)
+    Trans2 = integ(dTrans2, Trans20)
+
+    ! Transit compartment 3
+    dTrans3 = Ktr*(Trans2 - Trans3)
+    Trans3 = integ(dTrans3, Trans30)
+    
+    ! Circulating cells (platelets or neutrophils)
+    dCirc = Ktr*Trans3 - Kcirc*Circ
+    Circ = integ(dCirc, Circ0)
+    
+    termt(t >= tstop, 'Stopped on time limit')    
+
+end ! derivative    
+
+discrete dosing
+    interval doseint = 168.0  ! hours
+    
+    if(dosenum <= numdoses)
+        Aplasma_ADC = Aplasma_ADC + ivdose
+        
+        ! Reset DAR...
+        !!! Need to weight this by remaining drug in system
+        DAR = DAR0
+    end
+    dosenum = dosenum + 1
+end
+
+end ! dynamic
+
+end ! program
