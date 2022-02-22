@@ -1,0 +1,1001 @@
+Model RDV_multidose
+!"RDV PBPK model"
+
+initial
+! This section contains statements executed once at the beginning of the simulation
+!Forcing function parameters
+!==============RDV parameters
+    constant k12 = 2.1  ! hr-1, transfer rate constant from compartment 1 (central) to compartment 2
+    constant k21 = 1.86  ! hr-1, transfer rate constant from compartment 2 to compartment 1
+    constant CL = 44.6   ! L/hr, total systemic clearance RDV
+    constant Vc = 4.6  ! L, volume of the central compartment
+    
+!===========A parameters
+    constant frdva = 0.17  ! L/hr, fractional conversion of RDV to A
+    constant kela = 1.1   ! hr-1, eliminaiton rate constant of A
+
+!===========N parameters
+    constant fan = 0.32  ! L/hr, fractional conversion of A to N
+    constant keln = 0.04   ! hr-1, eliminaiton rate constant of N
+
+! Physiological Parameters (Taken from PK-Sim for White American [NHANES, 1997) Age = 30, Wt =80.35 kg. and converted to plasma flowrates
+!                                  based hematocrit = 0.45)
+!====================Plasma Flow Rates (L/hr)============================
+    constant Qad = 12.42  ! adipose plasma flow
+    constant Qbo = 8.91  ! bone plasma flow
+    constant Qbr = 21.06 ! brain plasma flow
+    constant Qgi = 26.19 ! GI plasma flow
+    constant Qh = 7.02   ! heart plasma flow
+    constant Qk = 35.64  ! kidney plasma flow
+    constant Qli = 11.34 ! liver plasma flow
+    constant Qm = 30.78 ! muscle  plasma flow
+    constant Qrb = 1.89 ! rest of body plasma flow
+    constant Qsk = 8.91  ! skin plasma flow
+    constant Qsp = 4.59  ! spleen plasma flow
+    constant Qco = 168.75 ! cardiac output
+    
+!==================Tissue Volumes (L)==========================
+    constant Vadec = 3.62 ! adipose extracellular volume
+    constant Vadic = 17.38  !adipose intracellular volume
+    
+    constant Vboec = 1.38 ! bone extracellular volume
+    constant Vboic = 10.34  ! bone intracellular volume
+    
+    constant Vbrec = 0.039 ! brain extracellular volume
+    constant Vbric = 1.45  ! brain intracellular volume
+  
+    constant Vgiec = 0.144  ! GI extracellular volume
+    constant Vgiic = 1.14  ! GI intracellular volume
+    
+    constant Vhec = 0.075  ! heart extracellular volume
+    constant Vhic = 0.32   ! heart intracellular volume
+    
+    constant Vkec = 0.143  ! kideny extracellular volume
+    constant Vkic = 0.250    ! kidney intracellular volume
+    
+    constant Vliec = 0.6  ! L, liver extracellular volume
+    constant Vliic = 1.59  ! L, liver intracellular volume
+    
+    constant Vluec = 0.615  ! Lung extracellular volume
+    constant Vluic = 0.28  ! Lung intracellular volume
+   
+    constant Vmec = 5.89  ! muscle  EC volume
+    constant Vmic = 27.36! Muscle IC volume
+    
+    constant Vrbec = 0.22  ! Rest of body tissues EC volume
+    constant Vrbic = 1. ! Rest of Body tissues IC volume
+    
+    constant Vskec = 1.24  ! skin extracellular volume
+    constant Vskic = 2.47  ! skin intracellular volume
+   
+    constant Vspec = 0.07  ! spleen extracellular volume
+    constant Vspic = 0.11  ! spleen intracellular volume
+    
+    constant Vpv = 0.53     ! venous plasma volume; seem low may use G-plus
+    constant Vpa = 0.23    ! arterial plasma volume 
+    
+    
+!================Drug-specific Parameters=========================
+!=====Plasma=====
+
+
+    constant fuprdv = 0.12     ! unitless, unbound RDV fraction in humans
+    constant fupn = 1.         ! unitless, unbound Nuc fraction in macaque plasma
+
+!=====PBMC======
+    constant eKtnpbmc = 0.03   ! 1/hr, elimination rate constant of TN in PBMCs
+    constant mKrdvapbmc = 10.  ! 1/hr metabolic rate constant  from RDV to A in PBMCs.
+    constant mKamppbmc = 1.    ! L/hr, metabolic rate constant from A to MP in PBMCs.
+    constant mKmpnpbmc = 2.    ! L/hr, metabolic rate constant from MP to N in PBMCs.
+    constant mKnmppbmc = 0.5    ! L/hr, metabolic rate constante from N to MP in PBMCs.
+    constant mKmptnpbmc = 10.  ! L/hr metabolic rate constant from MP to TN in PBMCs.
+    constant Rrdvpbmc = 1.   ! unitless, PBMC/plasma RDV partition coefficient
+    constant Rnpbmc =1.      ! unitless, PBMC/plasma Nuc partition coefficient
+    constant tKrdvpbmc = 9.0   ! 1/hr, RDV transport rate constant from plasma into PBMC
+    constant tKnpbmc = 1.      ! 1/hr, Nuc transport rate constant from plasma into PBMC
+    
+!========Adipose
+    constant mCLrdvaadic = 173.8  ! L/hr, metabolic clearance of RDV to A in adipose IC
+    constant mCLampadic = 17.38    ! L/hr, metabolic clearance A to MP in adipose IC
+    constant mCLmpnadic = 34.76   ! L/hr, metabolic clearance MP to N in adipose IC
+    constant mCLnmpadic =8.68   ! L/hr, metabolic clearance N to MP in adipose IC
+    constant mCLmptnadic = 173.8    ! L/hr, metabolic clearance MP to TN in adipose IC 
+    constant eCLtnadic = 0.521 ! L/hr, elimination clearance of TN in adipose IC
+     
+    constant Rrdvad2 = 12.2 ! unitless, RDV adipose partition coefficient
+    constant tCLrdvad = 156.4  ! L/hr, RDV adipose transport clearance
+
+    constant Rnad2 = 0.17 ! unitless, N adipose  partition coefficient
+    constant tCLnad = 17.38 ! L/hr, N adipose transport clearance
+
+!========Bone
+    constant mCLrdvaboic = 100.3  ! L/hr, metabolic clearance of RDV to A in bone IC
+    constant mCLampboic = 10.3    ! L/hr, metabolic clearance A to MP in bone IC
+    constant mCLmpnboic = 20.6   ! L/hr, metabolic clearance MP to N in bone IC
+    constant mCLnmpboic = 5.2   ! L/hr, metabolic clearance N to MP in bone IC
+    constant mCLmptnboic = 100.3    ! L/hr, metabolic clearance MP to TN in bone IC 
+    constant eCLtnboic = 0.31! L/hr, elimination clearance of TN in bone IC
+     
+    constant Rrdvbo2 = 4.23   ! unitless, RDV bone partition coefficient
+    constant tCLrdvbo = 93.1  ! L/hr, RDV bone transport clearance
+
+    constant Rnbo2 = 0.51 ! unitless, N bone  partition coefficient
+    constant tCLnbo = 10.3 ! L/hr, N bone transport clearance
+    
+!========Brain
+    constant mCLrdvabric = 14.5  ! L/hr, metabolic clearance of RDV to A in brain IC
+    constant mCLampbric = 1.45    ! L/hr, metabolic clearance A to MP in brain IC
+    constant mCLmpnbric = 2.90   ! L/hr, metabolic clearance MP to N in brain IC
+    constant mCLnmpbric = 0.725   ! L/hr, metabolic clearance N to MP in brain IC
+    constant mCLmptnbric = 14.5    ! L/hr, metabolic clearance MP to TN in brain IC 
+    constant eCLtnbric = 0.044 ! L/hr, elimination clearance of TN in brain IC
+     
+    constant Rrdvbr2 = 1.8 ! unitless, RDV brain partition coefficient
+    constant tCLrdvbr = 13.1  ! L/hr, RDV brain transport clearance
+
+    constant Rnbr2 = 0.82 ! unitless, N brain  partition coefficient
+    constant tCLnbr = 1.45 ! L/hr, N bone transport clearance
+!=======GI
+    constant mCLrdvagiic = 11.4  ! L/hr, metabolic clearance of RDV to A in GI IC
+    constant mCLampgiic = 1.14    ! L/hr, metabolic clearance A to MP in GI IC
+    constant mCLmpngiic = 2.28   ! L/hr, metabolic clearance MP to N in GI IC
+    constant mCLnmpgiic = 0.57   ! L/hr, metabolic clearance N to MP in GI IC
+    constant mCLmptngiic = 11.4    ! L/hr, metabolic clearance MP to TN in GI IC 
+    constant eCLtngiic = 0.034 ! L/hr, elimination clearance of TN in GI IC
+    
+    constant Rrdvgi2 = 1.09 ! unitless, RDV gi partition coefficient
+    constant tCLrdvgi = 10.3   ! L/hr, RDV gi transport clearance
+
+    constant Rngi2 = 0.81 ! unitless, N gi partition coefficient
+    constant tCLngi = 1.14  ! L/hr, N gi transport clearance
+
+!======Heart
+    constant mCLrdvahic = 3.2  ! L/hr, metabolic clearance of RDV to A in heart IC
+    constant mCLamphic = 0.32    ! L/hr, metabolic clearance A to MP in heart IC
+    constant mCLmpnhic = 0.64   ! L/hr, metabolic clearance MP to N in heart IC
+    constant mCLnmphic = 0.16   ! L/hr, metabolic clearance N to MP in heart IC
+    constant mCLmptnhic = 3.2    ! L/hr, metabolic clearance MP to TN in heart IC 
+    constant eCLtnhic = 0.0096 ! L/hr, elimination clearance of TN in heart IC
+    
+    constant Rrdvh2 = 2.88 ! unitless, RDV heart IF:IC partition coefficient
+    constant tCLrdvh = 2.56 ! L/hr, RDV heart IF:IC transport clearance
+
+    constant Rnh2 = 0.76 ! unitless, N heart IF:IC partition coefficient
+    constant tCLnh = 0.32  ! L/hr, N heart IF:IC transport clearance
+
+!======Kidney
+    constant mCLrdvakic = 2.5  ! L/hr, metabolic clearance of RDV to A in kidney IC
+    constant mCLampkic = 0.25    ! L/hr, metabolic clearance A to MP in kidney IC
+    constant mCLmpnkic = 0.5   ! L/hr, metabolic clearance MP to N in kidney IC
+    constant mCLnmpkic = 0.125   ! L/hr, metabolic clearance N to MP in kidney IC
+    constant mCLmptnkic = 2.5    ! L/hr, metabolic clearance MP to TN in kidney IC 
+    constant eCLtnkic = 0.0075 ! L/hr, elimination clearance of TN in kidney IC
+    
+    constant Rrdvk2 = 0.95  ! unitless, RDV kidney partition coeffiicent
+    constant tCLrdvk = 2.3  ! L/hr, RDV kidney transport clearance
+
+    constant Rnk2 = 0.8    ! unitless, N kidney partition coeffiicent
+    constant tCLnk = 0.25    ! L/hr, N kidney transport clearance
+
+!======Liver
+    constant mCLrdvaliic = 15.9  ! L/hr, metabolic clearance of RDV to A in liver IC
+    constant mCLampliic = 1.59    ! L/hr, metabolic clearance A to MP in liver IC
+    constant mCLmpnliic = 3.18   ! L/hr, metabolic clearance MP to N in liver IC
+    constant mCLnmpliic = 0.795   ! L/hr, metabolic clearance N to MP in liver IC
+    constant mCLmptnliic = 15.9    ! L/hr, metabolic clearance MP to TN in lung IC
+    constant eCLtnliic = 0.048 ! L/hr, elimination clearance of TN in liver IC
+  
+    constant Rrdvli2 = 1.21  ! unitless, RDV liver IF:IC partition coeffiicent
+    constant tCLrdvli = 14.3   ! L/hr, liver IF:IC transport clearance
+
+    constant Rnli2 = 0.78   ! unitless, N liver IF:IC partition coeffiicent
+    constant tCLnli = 1.59   ! L/hr, N liver IF:IC transport clearance 
+    
+
+!=======Lung
+    constant mCLrdvaluic = 2.8  ! L/hr, metabolic clearance of RDV to A in lung IC
+    constant mCLampluic = 0.28    ! L/hr, metabolic clearance A to MP in lung IC
+    constant mCLmpnluic = 0.56   ! L/hr, metabolic clearance MP to N in lung IC
+    constant mCLnmpluic = 0.14   ! L/hr, metabolic clearance N to MP in lung IC
+    constant mCLmptnluic = 2.8    ! L/hr, metabolic clearance MP to TN in lung IC 
+    constant eCLtnluic = 0.0084 ! L/hr, elimination clearance of TN in lung IC
+   
+    constant tCLrdvlu = 2.5 ! L/hr, RDV lung  mass transfer coefficient
+    constant Rrdvlu2 = 0.32 ! unitless RDV lung  partition coefficient
+
+    constant tCLnlu = 0.28 ! L/hr, Nuc lung  mass transfer coefficient
+    constant Rnlu2 = 0.84 ! unitless Nuc lung partition coefficient
+
+    
+!========Muscle
+   constant mCLrdvamic = 273.6  ! L/hr, metabolic clearance of RDV to A in muscle IC
+    constant mCLampmic = 27.36    ! L/hr, metabolic clearance A to MP in muscle IC
+    constant mCLmpnmic = 54.72   ! L/hr, metabolic clearance MP to N in muscle IC
+    constant mCLnmpmic = 13.68   ! L/hr, metabolic clearance N to MP in muscle IC
+    constant mCLmptnmic = 273.6    ! L/hr, metabolic clearance MP to TN in muscle IC 
+    constant eCLtnmic = 0.82 ! L/hr, elimination clearance of TN in muscle IC
+    
+    constant Rrdvm2 = 1.35 ! unitless, RDV muscle  partition coefficient
+    constant tCLrdvm = 246.2 ! L/hr, RDV muscle IF:IC transport clearance
+
+    constant Rnm2 = 0.84 ! unitless, N muscle partition coefficient
+    constant tCLnm = 27.36  ! L/hr, Nuc muscle  mass transfer coefficient
+
+!========Rest of Body
+    
+    constant mCLrdvarbic = 10.  ! L/hr, metabolic clearance of RDV to A in rest of body IC
+    constant mCLamprbic = 1.    ! L/hr, metabolic clearance A to MP in rest of body IC
+    constant mCLmpnrbic = 2.   ! L/hr, metabolic clearance MP to N in rest of body IC
+    constant mCLnmprbic = 0.5   ! L/hr, metabolic clearance N to MP in rest of body IC
+    constant mCLmptnrbic = 10.    ! L/hr, metabolic clearance MP to TN in rest of body IC 
+    constant eCLtnrbic = 0.03 ! L/hr, elimination clearance of TN in rest of body IC
+    
+    constant Rrdvrb2 = 1.9 ! unitless, RDV rest of body partition coefficient
+    constant tCLrdvrb = 9. ! L/hr, RDV rest of body IF:IC transport clearance
+
+    constant Rnrb2 = 0.74 ! unitless, N rest of bodypartition coefficient
+    constant tCLnrb = 1.  ! L/hr, Nuc rest of body  mass transfer coefficient
+
+!=====Skin
+    constant mCLrdvaskic = 24.7 ! L/hr, metabolic clearance of RDV to A in skin IC
+    constant mCLampskic = 2.47    ! L/hr, metabolic clearance A to MP in skinn IC
+    constant mCLmpnskic = 4.94   ! L/hr, metabolic clearance MP to N in skin IC
+    constant mCLnmpskic = 1.24   ! L/hr, metabolic clearance N to MP in skin IC
+    constant mCLmptnskic = 24.7    ! L/hr, metabolic clearance MP to TN in skin IC 
+    constant eCLtnskic = 0.074 ! L/hr, elimination clearance of TN in skin IC
+    
+    constant Rrdvsk2 = 1.7 ! unitless, RDV skin partition coefficient
+    constant tCLrdvsk = 22.2 ! L/hr, RDV skin transport clearance
+
+    constant Rnsk2 = 0.81 ! unitless, N skin partition coefficient
+    constant tCLnsk = 2.47 ! L/hr, N skin transport clearance
+    
+!=====Spleen
+    constant mCLrdvaspic = 1.1 ! L/hr, metabolic clearance of RDV to A in spleen IC
+    constant mCLampspic = 0.11    ! L/hr, metabolic clearance A to MP in spleen IC
+    constant mCLmpnspic = 0.22   ! L/hr, metabolic clearance MP to N in spleen IC
+    constant mCLnmpspic = 0.055   ! L/hr, metabolic clearance N to MP in spleen IC
+    constant mCLmptnspic = 1.1    ! L/hr, metabolic clearance MP to TN in spleen IC 
+    constant eCLtnspic = 0.0033 ! L/hr, elimination clearance of TN in skin IC
+    
+    constant Rrdvsp2 = 0.41 ! unitless, RDV spleen partition coefficient
+    constant tCLrdvsp = 1. ! L/hr, RDV spleen transport clearance
+
+    constant Rnsp2 = 0.81 ! unitless, N spleen partition coefficient
+    constant tCLnsp = 0.11  ! L/hr, N spleen transport clearance
+
+! Drug Dosing
+! Arrays which contain the dosing info
+
+dimension real dose[5], tinf[5]
+    constant dose = 200.0, 100.0, 100.0, 100.0, 100.0
+    constant tinf = 2.0, 2.0, 2.0, 2.0, 2.0
+
+dimension integer day
+
+! Use a loop to schedule the dosing events
+for day = 1, 5
+    schedule start_infusion at 24.0*(day - 1)
+    schedule end_infusion at 24.0*(day - 1) + tinf[day]
+end
+
+! Reset day so it can be used to index the dose arrays in the discrete sections
+day = 1
+
+! intialize the infusion rate
+infrate = 0.0
+
+    
+!-------Timing commands
+    
+    constant  TSTOP = 144.   ! Length of experiment (hrs)
+
+    constant POINTS = 1000.    ! Number of points in plot
+              CINT  = TSTOP/POINTS  ! Communication interval
+    
+       
+    
+end      ! End of initial section
+
+
+derivative   ! Beginning of derivative definition block
+
+     
+!==============Rate Equations=======================================  
+!===== Venous and Arterial  Plasma Equations
+    
+   
+rRDVpv = Qco*RDVpv
+rRDVluec = Qco*RDVluec
+rRDVpa = Qco*RDVpa
+    
+rApv = Qco*Apv
+rAluec = Qco*Aluec
+rApa = Qco*Apa
+   
+rNpv = Qco*Npv
+rNluec = Qco*Nluec
+rNpa = Qco*Npa
+    
+!==============PBMC======================
+    mRDVApbmc = mKrdvapbmc*RDVpbmc
+    mAMPpbmc = mKamppbmc*Apbmc
+    mMPNpbmc = mKmpnpbmc*MPpbmc
+    mMPTNpbmc = mKmptnpbmc*MPpbmc
+    mNMPpbmc = mKnmppbmc*Npbmc
+    eTNpbmc = eKtnpbmc*TNpbmc
+    
+    tRDVpbmc = tKrdvpbmc*fuprdv*RDVpv
+    tRDVpbmcO = tKrdvpbmc*fuprdv*RDVpbmc/Rrdvpbmc
+
+    txNpbmc = tKnpbmc*fupn*Npv
+    tNpbmcO = tKnpbmc*fupn*Npbmc/Rnpbmc
+
+!==============Adipose==============
+    mRDVAadic = mCLrdvaadic*RDVadic
+    mAMPadic = mCLampadic*Aadic
+    mMPNadic = mCLmpnadic*MPadic
+    mMPTNadic = mCLmptnadic*MPadic
+    mNMPadic = mCLnmpadic*Nadic
+    eTNadic = eCLtnadic*TNadic
+
+    rRDVadI = Qad*RDVpa
+    rRDVadO = Qad*RDVadec
+    tRDVad12 = tCLrdvad*fuprdv*RDVadec
+    tRDVad21 = tCLrdvad*fuprdv*RDVadic/Rrdvad2
+
+    rNadI = Qad*Npa
+    rNadO = Qad*Nadec
+    tNad12 = tCLnad*fupn*Nadec
+    tNad21 = tCLnad*fupn*Nadic/Rnad2
+    
+!=============Brain=============
+    mRDVAbric = mCLrdvabric*RDVbric
+    mAMPbric = mCLampbric*Abric
+    mMPNbric = mCLmpnbric*MPbric
+    mMPTNbric = mCLmptnbric*MPbric
+    mNMPbric = mCLnmpbric*Nbric
+    eTNbric = eCLtnbric*TNbric
+
+    rRDVbrI = Qbr*RDVpa
+    rRDVbrO = Qbr*RDVbrec
+    tRDVbr12 = tCLrdvbr*fuprdv*RDVbrec
+    tRDVbr21 = tCLrdvbr*fuprdv*RDVbric/Rrdvbr2
+
+    rNbrI = Qbr*Npa
+    rNbrO = Qbr*Nbrec
+    tNbr12 = tCLnbr*fupn*Nbrec
+    tNbr21 = tCLnbr*fupn*Nbric/Rnbr2
+    
+!=============Bone===============
+    mRDVAboic = mCLrdvaboic*RDVboic
+    mAMPboic = mCLampboic*Aboic
+    mMPNboic = mCLmpnboic*MPboic
+    mMPTNboic = mCLmptnboic*MPboic
+    mNMPboic = mCLnmpboic*Nboic
+    eTNboic = eCLtnboic*TNboic
+
+    rRDVboI = Qbo*RDVpa
+    rRDVboO = Qbo*RDVboec
+    tRDVbo12 = tCLrdvbo*fuprdv*RDVboec
+    tRDVbo21 = tCLrdvbo*fuprdv*RDVboic/Rrdvbo2
+
+    rNboI = Qbo*Npa
+    rNboO = Qbo*Nboec
+    tNbo12 = tCLnbo*fupn*Nboec
+    tNbo21 = tCLnbo*fupn*Nboic/Rnbo2
+
+!=============GI=============
+    mRDVAgiic = mCLrdvagiic*RDVgiic
+    mAMPgiic = mCLampgiic*Agiic
+    mMPNgiic = mCLmpngiic*MPgiic
+    mMPTNgiic = mCLmptngiic*MPgiic
+    mNMPgiic = mCLnmpgiic*Ngiic
+    eTNgiic = eCLtngiic*TNgiic
+
+    rRDVgiI = Qgi*RDVpa
+    rRDVgiO = Qgi*RDVgiec
+    tRDVgi12 = tCLrdvgi*fuprdv*RDVgiec
+    tRDVgi21 = tCLrdvgi*fuprdv*RDVgiic/Rrdvgi2
+
+    rNgiI = Qgi*Npa
+    rNgiO = Qgi*Ngiec
+    tNgi12 = tCLngi*fupn*Ngiec
+    tNgi21 = tCLngi*fupn*Ngiic/Rngi2
+
+!=============Heart=============
+    mRDVAhic = mCLrdvahic*RDVhic
+    mAMPhic = mCLamphic*Ahic
+    mMPNhic = mCLmpnhic*MPhic
+    mMPTNhic = mCLmptnhic*MPhic
+    mNMPhic = mCLnmphic*Nhic
+    eTNhic = eCLtnhic*TNhic
+
+    rRDVhI = Qh*RDVpa
+    rRDVhO = Qh*RDVhec
+    tRDVh12 = tCLrdvh*fuprdv*RDVhec
+    tRDVh21 = tCLrdvh*fuprdv*RDVhic/Rrdvh2
+
+    rNhI = Qh*Npa
+    rNhO = Qh*Nhec
+    tNh12 = tCLnh*fupn*Nhec
+    tNh21 = tCLnh*fupn*Nhic/Rnh2
+
+!================Kidney=============
+    mRDVAkic = mCLrdvakic*RDVkic
+    mAMPkic = mCLampkic*Akic
+    mMPNkic = mCLmpnkic*MPkic
+    mMPTNkic = mCLmptnkic*MPkic
+    mNMPkic = mCLnmpkic*Nkic
+    eTNkic = eCLtnkic*TNkic
+    
+    rRDVkI = Qk*RDVpa
+    rRDVkO = Qk*RDVkec
+    tRDVk12 = tCLrdvk*fuprdv*RDVkec
+    tRDVk21 = tCLrdvk*fuprdv*RDVkic/Rrdvk2
+
+    rNkI = Qk*Npa
+    rNkO = Qk*Nkec
+    tNk12 = tCLnk*fupn*Nkec
+    tNk21 = tCLnk*fupn*Nkic/Rnk2
+
+!=============Liver===============
+    mRDVAliic = mCLrdvaliic*RDVliic
+    mAMPliic = mCLampliic*Aliic
+    mMPNliic = mCLmpnliic*MPliic
+    mMPTNliic = mCLmptnliic*MPliic
+    mNMPliic = mCLnmpliic*Nliic
+    eTNliic = eCLtnliic*TNliic
+    
+    rRDVliI = Qli*RDVpa
+    rRDVliO = (Qli + Qgi + Qsp)*RDVliec
+    tRDVli12 = tCLrdvli*fuprdv*RDVliec
+    tRDVli21 = tCLrdvli*fuprdv*RDVliic/Rrdvli2
+    
+    rNliI = Qli*Npa
+    rNliO = (Qli + Qgi + Qsp)*Nliec
+    tNli12 = tCLnli*fupn*Nliec
+    tNli21 = tCLnli*fupn*Nliic/Rnli2
+
+!=============Lung==============
+    mRDVAluic = mCLrdvaluic*RDVluic
+    mAMPluic = mCLampluic*Aluic
+    mMPNluic = mCLmpnluic*MPluic
+    mNMPluic = mCLnmpluic*Nluic
+    mMPTNluic = mCLmptnluic*MPluic
+    eTNluic = eCLtnluic*TNluic
+   
+    tRDVlu12 = tCLrdvlu*fuprdv*RDVluec
+    tRDVlu21 = tCLrdvlu*fuprdv*RDVluic/Rrdvlu2
+
+    tNlu12 = tCLnlu*fupn*Nluec
+    tNlu21 = tCLnlu*fupn*Nluic/Rnlu2
+
+!=================Muscle============
+    mRDVAmic = mCLrdvamic*RDVmic
+    mAMPmic = mCLampmic*Amic
+    mMPNmic = mCLmpnmic*MPmic
+    mMPTNmic = mCLmptnmic*MPmic
+    mNMPmic = mCLnmpmic*Nmic
+    eTNmic = eCLtnmic*TNmic
+
+    rRDVmI = Qm*RDVpa
+    rRDVmO = Qm*RDVmec
+    tRDVm12 = tCLrdvm*fuprdv*RDVmec
+    tRDVm21 = tCLrdvm*fuprdv*RDVmic/Rrdvm2
+
+    rNmI = Qm*Npa
+    rNmO = Qm*Nmec
+    tNm12 = tCLnm*fupn*Nmec
+    tNm21 = tCLnm*fupn*Nmic/Rnm2
+
+!==========Rest of Body==========
+    mRDVArbic = mCLrdvarbic*RDVrbic
+    mAMPrbic = mCLamprbic*Arbic
+    mMPNrbic = mCLmpnrbic*MPrbic
+    mMPTNrbic = mCLmptnrbic*MPrbic
+    mNMPrbic = mCLnmprbic*Nrbic
+    eTNrbic = eCLtnrbic*TNrbic
+
+    rRDVrbI = Qrb*RDVpa
+    rRDVrbO = Qrb*RDVrbec
+    tRDVrb12 = tCLrdvrb*fuprdv*RDVrbec
+    tRDVrb21 = tCLrdvrb*fuprdv*RDVrbic/Rrdvrb2
+
+    rNrbI = Qrb*Npa
+    rNrbO = Qrb*Nrbec
+    tNrb12 = tCLnrb*fupn*Nrbec
+    tNrb21 = tCLnrb*fupn*Nrbic/Rnrb2
+
+!================Skin==========
+    mRDVAskic = mCLrdvaskic*RDVskic
+    mAMPskic = mCLampskic*Askic
+    mMPNskic = mCLmpnskic*MPskic
+    mMPTNskic = mCLmptnskic*MPskic
+    mNMPskic = mCLnmpskic*Nskic
+    eTNskic = eCLtnskic*TNskic
+
+    rRDVskI = Qsk*RDVpa
+    rRDVskO = Qsk*RDVskec
+    tRDVsk12 = tCLrdvsk*fuprdv*RDVskec
+    tRDVsk21 = tCLrdvsk*fuprdv*RDVskic/Rrdvsk2
+
+    rNskI = Qsk*Npa
+    rNskO = Qsk*Nskec
+    tNsk12 = tCLnsk*fupn*Nskec
+    tNsk21 = tCLnsk*fupn*Nskic/Rnsk2
+
+!================Spleen==========
+    mRDVAspic = mCLrdvaspic*RDVspic
+    mAMPspic = mCLampspic*Aspic
+    mMPNspic = mCLmpnspic*MPspic
+    mMPTNspic = mCLmptnspic*MPspic
+    mNMPspic = mCLnmpspic*Nspic
+    eTNspic = eCLtnspic*TNspic
+    
+    rRDVspI = Qsp*RDVpa
+    rRDVspO = Qsp*RDVspec
+    tRDVsp12 = tCLrdvsp*fuprdv*RDVspec
+    tRDVsp21 = tCLrdvsp*fuprdv*RDVspic/Rrdvsp2
+
+    rNspI = Qsp*Npa
+    rNspO = Qsp*Nspec
+    tNsp12 = tCLnsp*fupn*Nspec
+    tNsp21 = tCLnsp*fupn*Nspic/Rnsp2
+
+!========================ODES===========================
+! Plasma Venous (PV)
+    dxRDVpv =  IV + k21*xRDV2 -k12*xRDVpv - (CL/Vc)*xRDVpv
+    xRDVpv = integ(dxRDVpv, 0.)
+    RDVpv = xRDVpv/Vc
+    aucRDVpv = integ(RDVpv, 0.)
+    
+    dxRDV2 = k12*xRDVpv - k21*xRDV2
+    xRDV2 = integ(dxRDV2, 0.)
+
+! A model
+    dApv = frdva*RDVpv - kela*Apv
+    Apv  = integ(dApv, 0.)
+    aucApv = integ(Apv,0.)
+    
+! N model
+    dNpv = fan*Apv - keln*Npv
+    Npv  = integ(dNpv, 0.)
+    aucNpv = integ(Npv,0.)
+
+      
+! Plasma Arterial (PA)
+    dxRDVpa = rRDVluec - rRDVpa
+    xRDVpa = integ(dxRDVpa,0.)
+    RDVpa = xRDVpa/Vpa
+    
+    dxApa = rAluec - rApa
+    xApa = integ(dxApa,0.)
+    Apa = xApa/Vpa
+    
+    dxNpa = rNluec - rNpa
+    xNpa = integ(dxNpa, 0.)
+    Npa = xNpa/Vpa
+
+!  PBMC
+    dRDVpbmc = tRDVpbmc - tRDVpbmcO - mRDVApbmc
+    RDVpbmc = integ(dRDVpbmc, 0.)
+    RDVpbmc_uM = 1.66 * RDVpbmc
+    
+    dApbmc = mRDVApbmc - mAMPpbmc
+    Apbmc = integ(dApbmc, 0.)
+    Apbmc_uM = Apbmc * 2.27 
+
+    dMPpbmc = mAMPpbmc + mNMPpbmc - mMPTNpbmc - mMPNpbmc
+    MPpbmc = integ(dMPpbmc, 0.)
+    MPpbmc_uM = MPpbmc*2.71
+
+    dNpbmc = txNpbmc + mMPNpbmc - tNpbmcO - mNMPpbmc
+    Npbmc = integ(dNpbmc, 0.)
+    Npbmc_uM = 3.4 * Npbmc
+      
+    dTNpbmc = mMPTNpbmc - eTNpbmc
+    TNpbmc = integ(dTNpbmc, 0.)
+    TNpbmc_uM = 2.16 * TNpbmc
+    aucTNpbmc = integ(TNpbmc_uM, 0.)
+    
+! Adipose
+    dxRDVadec = rRDVadI - rRDVadO - tRDVad12 + tRDVad21
+    dxRDVadic = tRDVad12 - tRDVad21 - mRDVAadic
+    xRDVadec = integ(dxRDVadec, 0.)
+    xRDVadic = integ(dxRDVadic, 0.)
+    RDVadec = xRDVadec/Vadec
+    RDVadic = xRDVadic/Vadic
+    RDVad = (xRDVadec + xRDVadic)/(Vadec + Vadic)
+    
+    dxAadic = mRDVAadic - mAMPadic
+    xAadic = integ(dxAadic, 0.)
+    Aadic = xAadic/Vadic
+
+    dxMPadic = mAMPadic + mNMPadic - mMPNadic - mMPTNadic
+    xMPadic = integ(dxMPadic, 0.)
+    MPadic = xMPadic/Vadic
+
+    dxNadec = rNadI - rNadO - tNad12 + tNad21
+    dxNadic = tNad12 - tNad21 + mMPNadic - mNMPadic 
+    xNadec = integ(dxNadec, 0.)
+    xNadic = integ(dxNadic, 0.)
+    Nadec = xNadec/Vadec
+    Nadic = xNadic/Vadic
+    Nad = (xNadec + xNadic)/(Vadec + Vadic)
+    
+    dxTNadic = mMPTNadic - eTNadic 
+    xTNadic = integ(dxTNadic, 0.)
+    TNadic = xTNadic/Vadic
+    TNadic_uM = 2.16* TNadic
+    aucTNadic = integ(TNadic_uM, 0.)
+
+!   Bone
+    dxRDVboec = rRDVboI - rRDVboO - tRDVbo12 + tRDVbo21
+    dxRDVboic = tRDVbo12 - tRDVbo21 - mRDVAboic
+    xRDVboec = integ(dxRDVboec, 0.)
+    xRDVboic = integ(dxRDVboic, 0.)
+    RDVboec = xRDVboec/Vboec
+    RDVboic = xRDVboic/Vboic
+    RDVbo = (xRDVboec + xRDVboic)/(Vboec + Vboic)
+    
+    dxAboic = mRDVAboic - mAMPboic
+    xAboic = integ(dxAboic, 0.)
+    Aboic = xAboic/Vboic
+
+    dxMPboic = mAMPboic + mNMPboic - mMPNboic - mMPTNboic
+    xMPboic = integ(dxMPboic, 0.)
+    MPboic = xMPboic/Vboic
+
+    dxNboec = rNboI - rNboO - tNbo12 + tNbo21
+    dxNboic = tNbo12 - tNbo21 + mMPNboic - mNMPboic 
+    xNboec = integ(dxNboec, 0.)
+    xNboic = integ(dxNboic, 0.)
+    Nboec = xNboec/Vboec
+    Nboic = xNboic/Vboic
+    Nbo = (xNboec + xNboic)/(Vboec + Vboic)
+    
+    dxTNboic = mMPTNboic - eTNboic 
+    xTNboic = integ(dxTNboic, 0.)
+    TNboic = xTNboic/Vboic
+    TNboic_uM = 2.16* TNboic
+    aucTNboic = integ(TNboic_uM, 0.)
+    
+! Brain Model
+    dxRDVbrec = rRDVbrI - rRDVbrO - tRDVbr12 + tRDVbr21
+    dxRDVbric = tRDVbr12 - tRDVbr21 - mRDVAbric
+    xRDVbrec = integ(dxRDVbrec, 0.)
+    xRDVbric = integ(dxRDVbric, 0.)
+    RDVbrec = xRDVbrec/Vbrec
+    RDVbric = xRDVbric/Vbric
+    RDVbr = (xRDVbrec + xRDVbric)/(Vbrec + Vbric)
+    
+    dxAbric = mRDVAbric - mAMPbric
+    xAbric = integ(dxAbric, 0.)
+    Abric = xAbric/Vbric
+
+    dxMPbric = mAMPbric + mNMPbric - mMPNbric - mMPTNbric
+    xMPbric = integ(dxMPbric, 0.)
+    MPbric = xMPbric/Vbric
+
+    dxNbrec = rNbrI - rNbrO - tNbr12 + tNbr21
+    dxNbric = tNbr12 - tNbr21 + mMPNbric - mNMPbric
+    xNbrec = integ(dxNbrec, 0.)
+    xNbric = integ(dxNbric, 0.)
+    Nbrec = xNbrec/Vbrec
+    Nbric = xNbric/Vbric
+    Nbr = (xNbrec + xNbric)/(Vbrec + Vbric)
+    
+    dxTNbric = mMPTNbric - eTNbric 
+    xTNbric = integ(dxTNbric, 0.)
+    TNbric = xTNbric/Vbric
+    TNbric_uM = 2.16* TNbric
+    aucTNbric = integ(TNbric_uM, 0.)
+   
+! GI Model
+    dxRDVgiec = rRDVgiI - rRDVgiO - tRDVgi12 + tRDVgi21
+    dxRDVgiic = tRDVgi12 - tRDVgi21 - mRDVAgiic
+    xRDVgiec = integ(dxRDVgiec, 0.)
+    xRDVgiic = integ(dxRDVgiic, 0.)
+    RDVgiec = xRDVgiec/Vgiec
+    RDVgiic = xRDVgiic/Vgiic
+    RDVgi = (xRDVgiec + xRDVgiic)/(Vgiec + Vgiic)
+    
+    dxAgiic = mRDVAgiic - mAMPgiic
+    xAgiic = integ(dxAgiic, 0.)
+    Agiic = xAgiic/Vgiic
+
+    dxMPgiic = mAMPgiic + mNMPgiic - mMPNgiic - mMPTNgiic
+    xMPgiic = integ(dxMPgiic, 0.)
+    MPgiic = xMPgiic/Vgiic
+
+    dxNgiec = rNgiI - rNgiO - tNgi12 + tNgi21
+    dxNgiic = tNgi12 - tNgi21 + mMPNgiic - mNMPgiic
+    xNgiec = integ(dxNgiec, 0.)
+    xNgiic = integ(dxNgiic, 0.)
+    Ngiec = xNgiec/Vgiec
+    Ngiic = xNgiic/Vgiic
+    Ngi = (xNgiec + xNgiic)/(Vgiec + Vgiic)
+    
+    dxTNgiic = mMPTNgiic - eTNgiic 
+    xTNgiic = integ(dxTNgiic, 0.)
+    TNgiic = xTNgiic/Vgiic
+    TNgiic_uM = 2.16* TNgiic
+    aucTNgiic = integ(TNgiic_uM, 0.)
+
+! Heart Model
+    dxRDVhec = rRDVhI - rRDVhO - tRDVh12 + tRDVh21
+    dxRDVhic = tRDVh12 - tRDVh21 - mRDVAhic
+    xRDVhec = integ(dxRDVhec, 0.)
+    xRDVhic = integ(dxRDVhic, 0.)
+    RDVhec = xRDVhec/Vhec
+    RDVhic = xRDVhic/Vhic
+    RDVh = (xRDVhec + xRDVhic)/(Vhec + Vhic)
+    
+    dxAhic = mRDVAhic - mAMPhic
+    xAhic = integ(dxAhic, 0.)
+    Ahic = xAhic/Vhic
+
+    dxMPhic = mAMPhic + mNMPhic - mMPNhic - mMPTNhic
+    xMPhic = integ(dxMPhic, 0.)
+    MPhic = xMPhic/Vhic
+
+    dxNhec = rNhI - rNhO - tNh12 + tNh21
+    dxNhic = tNh12 - tNh21 + mMPNhic - mNMPhic
+    xNhec = integ(dxNhec, 0.)
+    xNhic = integ(dxNhic, 0.)
+    Nhec = xNhec/Vhec
+    Nhic = xNhic/Vhic
+    Nh = (xNhec + xNhic)/(Vhec + Vhic)
+    
+    dxTNhic = mMPTNhic - eTNhic 
+    xTNhic = integ(dxTNhic, 0.)
+    TNhic = xTNhic/Vhic
+    TNhic_uM = 2.16* TNhic
+    aucTNhic = integ(TNhic_uM, 0.)
+ 
+! Kidney Model
+    dxRDVkec = rRDVkI - rRDVkO - tRDVk12 + tRDVk21 
+    dxRDVkic = tRDVk12 - tRDVk21 - mRDVAkic 
+    xRDVkec = integ(dxRDVkec, 0.)
+    xRDVkic = integ(dxRDVkic, 0.)
+    RDVkec = xRDVkec/Vkec
+    RDVkic = xRDVkic/Vkic
+    RDVk = (xRDVkec + xRDVkic)/(Vkec + Vkic)
+    
+    dxAkic = mRDVAkic - mAMPkic
+    xAkic = integ(dxAkic, 0.)
+    Akic = xAkic/Vkic
+
+    dxMPkic = mAMPkic + mNMPkic - mMPNkic - mMPTNkic
+    xMPkic = integ(dxMPkic, 0.)
+    MPkic = xMPkic/Vkic
+
+    dxNkec = rNkI - rNkO - tNk12 + tNk21 
+    dxNkic = tNk12 - tNk21 + mMPNkic - mNMPkic
+    xNkec = integ(dxNkec, 0.)
+    xNkic = integ(dxNkic, 0.)
+    Nkec = xNkec/Vkec
+    Nkic = xNkic/Vkic
+    Nk = (xNkec + xNkic)/(Vkec + Vkic)
+    
+    dxTNkic = mMPTNkic - eTNkic 
+    xTNkic = integ(dxTNkic, 0.)
+    TNkic = xTNkic/Vkic
+    TNkic_uM = 2.16* TNkic
+    aucTNkic = integ(TNkic_uM, 0.)
+    
+! Liver Model
+    dxRDVliec = rRDVliI + rRDVgiO + rRDVspO - rRDVliO - tRDVli12 + tRDVli21
+    dxRDVliic = tRDVli12 - tRDVli21 - mRDVAliic
+    xRDVliec = integ(dxRDVliec, 0.)
+    xRDVliic = integ(dxRDVliic, 0.)
+    RDVliec = xRDVliec/Vliec
+    RDVliic = xRDVliic/Vliic
+    RDVli = (xRDVliec + xRDVliic)/(Vliec + Vliic)
+    
+    dxAliic = mRDVAliic - mAMPliic
+    xAliic = integ(dxAliic, 0.)
+    Aliic = xAliic/Vliic
+    
+    dxMPliic = mAMPliic + mNMPliic - mMPNliic - mMPTNliic
+    xMPliic = integ(dxMPliic, 0.)
+    MPliic = xMPliic/Vliic
+    
+    dxNliec = rNliI + rNgiO + rNspO - rNliO - tNli12 + tNli21 
+    dxNliic = tNli12 - tNli21 + mMPNliic - mNMPliic 
+    xNliec = integ(dxNliec, 0.)
+    xNliic = integ(dxNliic, 0.)
+    Nliec = xNliec/Vliec
+    Nliic = xNliic/Vliic
+    Nli = (xNliec + xNliic)/(Vliec + Vliic)
+    
+    dxTNliic = mMPTNliic - eTNliic
+    xTNliic = integ(dxTNliic, 0.)
+    TNliic = xTNliic/Vliic
+    TNliic_uM = 2.16 * TNliic
+    aucTNliic = integ(TNliic_uM, 0.)
+    
+! Lung Model
+    dxRDVluec = rRDVpv - rRDVluec - tRDVlu12 + tRDVlu21 
+    dxRDVluic = tRDVlu12 - tRDVlu21 - mRDVAluic
+    xRDVluec = integ(dxRDVluec, 0.)
+    xRDVluic = integ(dxRDVluic, 0.)
+    RDVluec = xRDVluec/Vluec
+    RDVluec_uM = 1.66 * RDVluec
+    RDVluic = xRDVluic/Vluic
+    RDVlu = (xRDVluec + xRDVluic)/(Vluec + Vluic)
+    
+    dxAluec = rApv - rAluec
+    xAluec = integ(dxAluec, 0.)
+    Aluec = xAluec/Vluec
+    
+    dxAluic = mRDVAluic - mAMPluic
+    xAluic = integ(dxAluic, 0.)
+    Aluic = xAluic/Vluic
+    
+    dxMPluic = mAMPluic + mNMPluic - mMPNluic - mMPTNluic
+    xMPluic = integ(dxMPluic, 0.)
+    MPluic = xMPluic/Vluic
+
+    dxNluec =  rNpv - rNluec - tNlu12 + tNlu21
+    dxNluic = tNlu12 + mMPNluic - tNlu21 - mNMPluic
+    xNluec = integ(dxNluec, 0.)
+    xNluic = integ(dxNluic, 0.)
+    Nluec = xNluec/Vluec
+    Nluic = xNluic/Vluic
+    Nlu = (xNluec + xNluic)/(Vluec + Vluic)
+
+    dxTNluic = mMPTNluic - eTNluic 
+    xTNluic = integ(dxTNluic, 0.)
+    TNluic = xTNluic/Vluic
+    TNluic_uM = 2.16 * TNluic
+    aucTNluic = integ(TNluic_uM, 0.)
+
+! Muscle Model
+    dxRDVmec = rRDVmI - rRDVmO - tRDVm12 + tRDVm21
+    dxRDVmic = tRDVm12 - tRDVm21 - mRDVAmic
+    xRDVmec = integ(dxRDVmec, 0.)
+    xRDVmic = integ(dxRDVmic, 0.)
+    RDVmec = xRDVmec/Vmec
+    RDVmic = xRDVmic/Vmic
+    RDVm = (xRDVmec + xRDVmic)/(Vmec + Vmic)
+    
+    dxAmic = mRDVAmic - mAMPmic
+    xAmic = integ(dxAmic, 0.)
+    Amic = xAmic/Vmic
+
+    dxMPmic = mAMPmic + mNMPmic - mMPNmic - mMPTNmic
+    xMPmic = integ(dxMPmic, 0.)
+    MPmic = xMPmic/Vmic
+
+    dxNmec = rNmI - rNmO - tNm12 + tNm21
+    dxNmic = tNm12 - tNm21 + mMPNmic - mNMPmic
+    xNmec = integ(dxNmec, 0.)
+    xNmic = integ(dxNmic, 0.)
+    Nmec = xNmec/Vmec
+    Nmic = xNmic/Vmic
+    Nm = (xNmec + xNmic)/(Vmec + Vmic)
+    
+    dxTNmic = mMPTNmic - eTNmic 
+    xTNmic = integ(dxTNmic, 0.)
+    TNmic = xTNmic/Vmic
+    TNmic_uM = 2.16* TNmic
+    aucTNmic = integ(TNmic_uM, 0.)
+    
+! Rest of Body
+    dxRDVrbec = rRDVrbI - rRDVrbO - tRDVrb12 + tRDVrb21
+    dxRDVrbic = tRDVrb12 - tRDVrb21 - mRDVArbic
+    xRDVrbec = integ(dxRDVrbec, 0.)
+    xRDVrbic = integ(dxRDVrbic, 0.)
+    RDVrbec = xRDVrbec/Vrbec
+    RDVrbic = xRDVrbic/Vrbic
+    RDVrb = (xRDVrbec + xRDVrbic)/(Vrbec + Vrbic)
+    
+    dxArbic = mRDVArbic - mAMPrbic
+    xArbic = integ(dxArbic, 0.)
+    Arbic = xArbic/Vrbic
+
+    dxMPrbic = mAMPrbic + mNMPrbic - mMPNrbic - mMPTNrbic
+    xMPrbic = integ(dxMPrbic, 0.)
+    MPrbic = xMPrbic/Vrbic
+
+    dxNrbec = rNrbI - rNrbO - tNrb12 + tNrb21
+    dxNrbic = tNrb12 - tNrb21 + mMPNrbic - mNMPrbic
+    xNrbec = integ(dxNrbec, 0.)
+    xNrbic = integ(dxNrbic, 0.)
+    Nrbec = xNrbec/Vrbec
+    Nrbic = xNrbic/Vrbic
+    Nrb = (xNrbec + xNrbic)/(Vrbec + Vrbic)
+    
+    dxTNrbic = mMPTNrbic - eTNrbic 
+    xTNrbic = integ(dxTNrbic, 0.)
+    TNrbic = xTNrbic/Vrbic
+    TNrbic_uM = 2.16* TNrbic
+    aucTNrbic = integ(TNrbic_uM, 0.)
+    
+!  Skin
+    dxRDVskec = rRDVskI - rRDVskO - tRDVsk12 + tRDVsk21
+    dxRDVskic = tRDVsk12 - tRDVsk21 - mRDVAskic
+    xRDVskec = integ(dxRDVskec, 0.)
+    xRDVskic = integ(dxRDVskic, 0.)
+    RDVskec = xRDVskec/Vskec
+    RDVskic = xRDVskic/Vskic
+    RDVsk = (xRDVskec + xRDVskic)/(Vskec + Vskic)
+    
+    dxAskic = mRDVAskic - mAMPskic
+    xAskic = integ(dxAskic, 0.)
+    Askic = xAskic/Vskic
+
+    dxMPskic = mAMPskic + mNMPskic - mMPNskic - mMPTNskic
+    xMPskic = integ(dxMPskic, 0.)
+    MPskic = xMPskic/Vskic
+
+    dxNskec = rNskI - rNskO - tNsk12 + tNsk21
+    dxNskic = tNsk12 - tNsk21 + mMPNskic - mNMPskic
+    xNskec = integ(dxNskec, 0.)
+    xNskic = integ(dxNskic, 0.)
+    Nskec = xNskec/Vskec
+    Nskic = xNskic/Vskic
+    Nsk = (xNskec + xNskic)/(Vskec + Vskic)
+    
+    dxTNskic = mMPTNskic - eTNskic 
+    xTNskic = integ(dxTNskic, 0.)
+    TNskic = xTNskic/Vskic
+    TNskic_uM = 2.16* TNskic
+    aucTNskic = integ(TNskic_uM, 0.)
+
+ ! Spleen Model
+    dxRDVspec = rRDVspI - rRDVspO - tRDVsp12 + tRDVsp21
+    dxRDVspic = tRDVsp12 - tRDVsp21 - mRDVAspic
+    xRDVspec = integ(dxRDVspec, 0.)
+    xRDVspic = integ(dxRDVspic, 0.)
+    RDVspec = xRDVspec/Vspec
+    RDVspic = xRDVspic/Vspic
+    RDVsp = (xRDVspec + xRDVspic)/(Vspec + Vspic)
+    
+    dxAspic = mRDVAspic - mAMPspic
+    xAspic = integ(dxAspic, 0.)
+    Aspic = xAspic/Vspic
+
+    dxMPspic = mAMPspic + mNMPspic - mMPNspic - mMPTNspic
+    xMPspic = integ(dxMPspic, 0.)
+    MPspic = xMPspic/Vspic
+
+    dxNspec = rNspI - rNspO - tNsp12 + tNsp21
+    dxNspic = tNsp12 - tNsp21 + mMPNspic - mNMPspic
+    xNspec = integ(dxNspec, 0.)
+    xNspic = integ(dxNspic, 0.)
+    Nspec = xNspec/Vspec
+    Nspic = xNspic/Vspic
+    Nsp = (xNspec + xNspic)/(Vspec + Vspic)
+    
+    dxTNspic = mMPTNspic - eTNspic 
+    xTNspic = integ(dxTNspic, 0.)
+    TNspic = xTNspic/Vspic
+    TNspic_uM = 2.16* TNspic
+    aucTNspic = integ(TNspic_uM, 0.)
+   
+     
+    IV = infrate
+    
+TERMT(T >= TSTOP)  ! Condition for terminating simulation
+
+end       ! end of derivative block
+  
+discrete start_infusion
+
+    ! compute the inf rate for this dose
+    infrate = dose[day]/tinf[day]
+    
+    ! update the day
+    day = day + 1
+end
+
+discrete end_infusion
+
+    ! Set inf rate to zero
+    infrate = 0.0
+end  
+
+end   ! end of program 
