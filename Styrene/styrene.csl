@@ -1,0 +1,202 @@
+model Styrene
+
+INITIAL  ! Beginning of pre-execution section
+
+DIMENSION logical CC  ! Flag set to .TRUE. for closed chamber runs
+
+!-------Physiological parameters
+
+CONSTANT    QPC = 14.    ! Alveolar ventilation rate (L/hr)
+CONSTANT    QCC = 14.    ! Cardiac output (L/hr)
+CONSTANT    QLC = 0.25   ! Fractional blood flow to liver
+CONSTANT    QFC = 0.09   ! Fractional blood flow to fat
+CONSTANT   QBrC = 0.018  ! Fractional blood flow to brain
+CONSTANT     BW = 0.22   ! Body weight (kg)
+CONSTANT    VLC = 0.04   ! Fraction liver tissue
+CONSTANT   VBrC = 0.0072 ! Fraction brain tissue
+CONSTANT    VFC = 0.07   ! Fraction fat tissue
+CONSTANT   VFBC = 0.0039 ! Volume of fat blood. !Reinoso et al 1977
+
+!-------Chemical parameters
+
+CONSTANT     PL = 7.30   ! Liver/blood partition coefficient
+CONSTANT     PF = 141.00 ! Fat/blood partition coefficient
+CONSTANT     PS = 2.50   ! Slowly perfused tissue/blood partition
+CONSTANT     PR = 5.0    ! Richly perfused tissue/blood partition
+CONSTANT    PBr = 3.0    ! Brain tissue/blood partition
+CONSTANT     PB = 70.00  ! Blood/air partition coefficient
+CONSTANT     MW = 380.91 ! Molecular weight (g/mol)
+CONSTANT  VMAXC = 8.4    ! Maximum velocity of metabolism (mg/hr-1kg)
+CONSTANT     KM = 0.36   ! Michaelis-Menten constant (mg/L)
+CONSTANT    KFC = 0.     ! First order metabolism (/hr-1kg)
+CONSTANT     KA = 0.     ! Oral uptake rate (/hr)
+CONSTANT   PAFC = 1.9    ! Diffusion limitation for fat (L/hr/kg^0.7)
+
+!-------Experimental parameters
+
+CONSTANT  PDOSE = 0.     ! Oral dose (mg/kg)
+CONSTANT IVDOSE = 0.     ! IV dose (mg/kg)
+CONSTANT   CONC = 1000.  ! Inhaled concentration (ppm)
+
+CONSTANT     CC = false  ! Default to open chamber
+ 
+CONSTANT  NRATS = 3.     ! Number of rats (for closed chamber)
+CONSTANT    KLC = 0.     ! First order loss from closed chamber (/hr)        
+CONSTANT   VCHC = 9.1    ! Volume of closed chamber (L)
+
+!-------Timing commands
+
+CONSTANT  TSTOP = 24.   ! Length of experiment (hrs)
+CONSTANT  TCHNG = 6.    ! Length of inhalation exposure (hrs)
+CONSTANT   TINF = .01   ! Length of IV infusion (hrs)
+CONSTANT POINTS = 96    ! Number of points in plot
+          CINT  = TSTOP/POINTS  ! Communication interval
+
+! See corresponding DISCRETE sections near the end of this file.
+schedule IVOn  at 0.0
+schedule IVOff at TINF
+IVZONE = 0.0  ! Default to OFF
+schedule CIOn at 0.0
+schedule CIOff at TCHNG
+CIZONE = 1.0  ! Default to OFF
+
+if(cc)
+    RATS = NRATS    ! Closed chamber simulation
+    KL = KLC
+else
+    RATS = 0.  ! Open chamber simulation
+    KL = 0.
+end
+
+! (Turn off chamber losses so concentration remains constant)
+IF (PDOSE == 0.0) 
+    KA = 0.  ! Parenteral dosing
+END
+   
+      VCH = VCHC-RATS*BW        ! Net chamber volume (L)
+      AI0 = CONC*VCH*MW/24450.  ! Initial amount in chamber (mg)
+
+!------Scaled parameters
+      VFB = VFBC*VFC*BW    ! Volume fat blood
+      VBr = VBrC * BW**0.74! Brain volume
+       QC = QCC*BW**0.74   ! Cardiac output
+       QP = QPC*BW**0.74   ! Alveolar ventilation
+       QL = QLC*QC         ! Liver blood flow
+       QF = QFC*QC         ! Fat blood flow
+      QBr = QBrC*QC        ! Brain blood flow
+       QS = 0.24*QC-QF     ! Slowly-perfused tissue blood flow
+       QR = 0.76*QC-QL-QBr ! Richly-perfused tissue blood flow
+       VL = VLC*BW         ! Liver volume
+       VF = VFC*BW - VFB   ! Fat tissue volume
+       VS = 0.82*BW-VF     ! Slowly-perfused tissue volume
+       VR = 0.09*BW-VL-VBr ! Richly-perfised tissue volume
+      PAF = PAFC * (BW**0.75) !L/hr
+     VMAX = VMAXC*(BW**0.7)  ! Maximum rate of metabolism
+       KF = KFC/BW**0.3    ! First-order metabolic rate constant
+     DOSE = PDOSE*BW       ! Oral dose
+      IVR = IVDOSE*BW/TINF ! Intravenous infusion rate
+
+END    ! End of initial section 
+
+
+DYNAMIC  ! Beginning of execution section
+
+DERIVATIVE  ! Beginning of derivative definition block
+    
+    RAI = RATS*QP*(CA/PB-CI) - (KL*AI) ! Rate equation
+     AI = INTEG(RAI,AI0)               ! Integral of RAI
+     CI = AI/VCH*CIZONE                ! Concentration in air
+     CP = CI*24450./MW
+    
+!----MR = Amount remaining in stomach (mg)
+    RMR = -KA*MR 
+     MR = DOSE*EXP(-KA*T)
+    
+!----CA = Concentration in arterial blood (mg/L)
+     CA = (QC*CV+QP*CI)/(QC+(QP/PB))
+   AUCB = INTEG(CA,0.)
+    
+!----AX = Amount exhaled (mg) 
+     CX = CA/PB 
+  CXPPM = (0.7*CX+0.3*CI)*24450./MW
+    RAX = QP*CX 
+     AX = INTEG(RAX,0.)
+    
+!----AS = Amount in slowly perfused tissues (mg)
+    RAS = QS*(CA-CVS)
+     AS = INTEG(RAS,0.)
+    CVS = AS/(VS*PS)
+     CS = AS/VS 
+    
+!----AR = Amount in rapidly perfused tissues (mg)
+    RAR = QR*(CA-CVR)
+     AR = INTEG(RAR,0.)
+    CVR = AR/(VR*PR)
+     CR = AR/VR 
+
+!---ABr = Amount in brain tissues (mg)
+   RABr = QBr*(CA-CVBr)
+    ABr = INTEG(RABr,0.)
+   CVBr = ABr/(VBr*PBr)
+    CBr = ABr/VBr 
+    
+!----AF = Amount in fat tissue (mg)
+    RAF = PAF * (CFB - CF / PF)
+     AF = INTEG(RAF,0.)
+    CVF = AF/(VF*PF)
+     CF = AF/VF 
+
+!----AFB = Amount in fat blood (mg)
+   RAFB = (QF * (CA - CFB)) + (PAF * ((CF / PF) - CFB))
+    AFB = INTEG(RAFB, 0.0)
+    CFB = AFB / VFB
+    
+!----AL = Amount in liver tissue (mg)
+    RAL = QL*(CA-CVL) - RAM + RAO 
+     AL = INTEG(RAL,0.)
+    CVL = AL/(VL*PL)
+     CL = AL/VL 
+   AUCL = INTEG(CL,0.)
+    
+!----AM = Amount metabolized (mg) 
+    RAM = (VMAX*CVL)/(KM+CVL) + KF*CVL*VL 
+     AM = INTEG(RAM,0.)
+    
+!----AO = Total mass input from stomach (mg)
+    RAO = KA*MR
+     AO = DOSE-MR
+    
+!----IV = Intravenous infusion rate (mg/hr)
+     IV = IVR*IVZONE 
+    
+!----CV = Mixed venous blood concentration (mg/L) 
+     CV = (QF*CVF + QL*CVL + QS*CVS + QR*CVR +QBr*CVBr + IV)/QC 
+    
+!----TMASS = mass balance (mg) 
+     TMASS = AF+AL+ABr+AS+AR+AM+AX+MR
+    
+!----DOSEX = Net amount absorbed (mg)
+     DOSEX = AI+AO+IVR*TINF-AX
+
+TERMT(T >= TSTOP)  ! Condition for terminating simulation
+
+END       ! End of derivative block
+
+DISCRETE IVOn
+    IVZONE = 1.0
+END
+
+DISCRETE IVOff
+    IVZONE = 0.0
+END
+
+DISCRETE CIOn
+    CIZONE = 1.0
+END
+
+DISCRETE CIOff
+    CIZONE = 0.0
+END
+
+END       ! End of dynamic section
+END       ! End of program 
