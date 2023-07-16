@@ -6,7 +6,7 @@ Magnolia is an application for modeling processes whose behavior can be describe
 
 Two slide sets are available to provide background information on Magnolia and instruction on basic usage of the tool:
 
-- [Intro Slides Section 1](https://github.com/magnoliasci/PBPK/blob/main/OpenTox%20Summer%20School%202023/Intro%20to%20M%26S%20Using%20Magnolia%20-%20Applications%20to%20PK%20-%20Section%201.pdf): Magnolia background information, summary of features, download and installation instructions.
+- [Intro Slides Section 1](https://github.com/magnoliasci/PBPK/blob/main/OpenTox%20Summer%20School%202023/Intro%20to%20M%26S%20Using%20Magnolia%20-%20Applications%20to%20PK%20-%20Section%201.pdf): background information on Magnnolia, summary of features, download and installation instructions.
 
 - [Intro Slides Section 2](https://github.com/magnoliasci/PBPK/blob/main/OpenTox%20Summer%20School%202023/Intro%20to%20M%26S%20Using%20Magnolia%20-%20Applications%20to%20PK%20-%20Section%202.pdf): overview of user interface and basic modeling workflow.
 
