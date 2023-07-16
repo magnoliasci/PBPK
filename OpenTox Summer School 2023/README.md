@@ -6,7 +6,7 @@ Two slide sets are available to provide background information on Magnolia and i
 
 [Google](https://www.google.com)
 
-[Introduction to Magnolia 1](PBPK/Intro to M&S Using Magnolia - Applications to PK - Section 1.pdf)
+[Introduction to Magnolia 1](PBPK/"Intro to M&S Using Magnolia - Applications to PK - Section 1.pdf")
 
 [Introduction to Magnolia 2](PBPK/OpenTox Summer School 2023/Intro to M&S Using Magnolia - Applications to PK - Section 2.pdf)
 
