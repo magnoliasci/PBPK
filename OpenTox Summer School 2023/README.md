@@ -4,7 +4,7 @@ This repository contains model source code, data sets and training materials use
 
 Two slide sets are available to provide background information on Magnolia and instruction on basic usage of the tool:
 
-[Intro Slides Section 11]("Intro to M&S Using Magnolia - Applications to PK - Section 1.pdf")
+[Intro Slides Section 11](["Intro to M&S Using Magnolia - Applications to PK - Section 1.pdf"](https://github.com/magnoliasci/PBPK/blob/main/OpenTox%20Summer%20School%202023/Intro%20to%20M%26S%20Using%20Magnolia%20-%20Applications%20to%20PK%20-%20Section%201.pdf))
 
 [Intro Slides Section 2]("PBPK/OpenTox Summer School 2023/Intro to M&S Using Magnolia - Applications to PK - Section 2.pdf")
 
