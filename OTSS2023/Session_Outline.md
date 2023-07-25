@@ -8,13 +8,13 @@
    3. Edit model code to add first-order metabolism (and maybe 2nd fat compartment?)
    4. Show improvement in model fit
 4. Work with updated PERC model
-   - Review code and modeling objectives
-   - Review model with additional code (initially commented out)
-   - Enable code, show fit to Odum data with some notional parameter values, use sliders to explore
-   - Show CMD script with code to estimate TCA metabolism parameters from Odum
+   1. Review code and modeling objectives
+   2. Review model with additional code (initially commented out)
+   3. Enable code, show fit to Odum data with some notional parameter values, use sliders to explore
+   4. Show CMD script with code to estimate TCA metabolism parameters from Odum
 5. Assign homework
-   - Recreate updated model by stepwise addition of TCA parameters and equations on your own
-   - Run the CMD script to estimate parameters
-   - Create a new CMD script to:
+   1. Recreate updated model by stepwise addition of TCA parameters and equations on your own
+   2. Run the CMD script to estimate parameters
+   3. Create a new CMD script to:
       * Run the model with fitted parameters and show fit to Odum data
       * Reparameterize as human with supplied parameters and show fit to one or more of the human data sets 
