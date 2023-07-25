@@ -1,5 +1,7 @@
 # OpenTox Summer Scool 2023 Magnolia Session Outline #
 
+The Magnolia session will consist of a short introduction to the application's user interface and workflow, followed by a demonstration of extending a published model of perchloroethylene to include an additional metabolic path and review of a homework assignment related to further extension of this model.
+
 1. Show students the GitHub site with models, data, Magnolia tutorial slides, etc.
 2. Cover the basics of user interface and workflow using the default model created by Magnolia when a new CSL file is created: main parts of UI, creating a new CSL file, main parts of CSL language, running a model, controlling model using sliders, loading and plotting observed data, controlling a model using CMD
 3. Work with the PERC CC model
