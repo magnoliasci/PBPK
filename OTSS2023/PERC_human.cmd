@@ -1,4 +1,4 @@
-LOAD 'PERC.CSL'
+LOAD 'PERC.csl'
 
 RESET
 
@@ -9,9 +9,14 @@ SET VMAXC=0.28, KM=7.7, KFC=0.0, FTCA=0.6, KUC=0.08, VDC=0.1
 
 PREPARE T, CXPPM
 
-DATA FERN100_1 @file='Fernandez_100.csv' T='T' !CXPPM='CXPPM_1'
-DATA FERN100_2 @file='Fernandez_100.csv' T='T' !CXPPM='CXPPM_2'
-DATA FERN100_4 @file='Fernandez_100.csv' T='T' !CXPPM='CXPPM_4'
+DATA FERN100_1 @file='Fernandez_100.csv' T='T'
+DATA FERN100_2 @file='Fernandez_100.csv' T='T'
+DATA FERN100_4 @file='Fernandez_100.csv' T='T'
+
+DATA FERN150_1 @file='Fernandez_150.csv' T='T'
+DATA FERN150_4 @file='Fernandez_150.csv' T='T'
+DATA FERN150_6 @file='Fernandez_150.csv' T='T'
+DATA FERN150_8 @file='Fernandez_150.csv' T='T'
 
 SET CONC=100.0, TSTOP=8.0, TCHNG=1.0
 START
@@ -27,3 +32,20 @@ SET TCHNG=4.0
 START
 PLOT CXPPM 'FERN100_4:CXPPM_4' @TITLE='PERC, human, exhaled air conc, 100 ppm @ 4 h'
 
+SET CONC=150.0, TSTOP=12.0, TCHNG=1.0
+START
+PLOT CXPPM 'FERN150_1:CXPPM_1' ...
+     @TITLE='PERC, human, exhaled air conc, 150 ppm @ 1 h' ...
+     @XLABEL='Time (h)' @YLABEL='Air Concentration (ppm)'
+
+SET TCHNG=4.0
+START
+PLOT CXPPM 'FERN150_4:CXPPM_4' @TITLE='PERC, human, exhaled air conc, 150 ppm @ 4 h'
+
+SET TCHNG=6.0
+START
+PLOT CXPPM 'FERN150_6:CXPPM_6' @TITLE='PERC, human, exhaled air conc, 150 ppm @ 6 h'
+
+SET TCHNG=8.0
+START
+PLOT CXPPM 'FERN150_8:CXPPM_8' @TITLE='PERC, human, exhaled air conc, 150 ppm @ 8 h'
