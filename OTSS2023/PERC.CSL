@@ -202,8 +202,32 @@ DERIVATIVE
   FMetInh = RAM / (RXDOSE + 1.0e-12)   ! metabolism rate / chemical inhalation rate
  FMetINet = RAM / (RDOSEX + 1.0e-12)  ! metabolism rate / net uptake rate
  FMetOral = RAM / (DRINK + 1.0e-12)   ! metabolism rate / chemical ingestion rate
-                             
-  TERMT(T >= TSTOP) 
+ 
+    ! ----------------------------------------------------------------------
+    ! TCA submodel
+    ! ----------------------------------------------------------------------
+    
+     CONSTANT MWT = 163.5       ! TCA MW
+     CONSTANT FTCA = 0.9, KUC = 0.035, VDC = 0.238
+     
+     ! Scaled parameters
+     INITIAL
+        STOCHT = MWT/MW
+        KU = KUC/BW**0.25      
+        VD = VDC*BW
+     END
+
+      RKU = KU*CVM*VD
+     ACLM = INTEG(RKU,0.)
+  ACLMBW  = ACLM/BW       ! URINARY EXCRETION - mg/kg
+                                 
+    ! CVM = concentration of TCA in blood (mg/l)
+      RM  = STOCHT*FTCA*RAM - RKU  
+        M = INTEG(RM,0.)
+      CVM = M/VD
+     AUCM = INTEG(CVM,0.)
+
+    TERMT(T >= TSTOP) 
 
 END       ! End of derivative
 END       ! End of dynamic 

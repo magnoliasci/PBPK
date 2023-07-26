@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><history><modification author="conrad" date="Tue, 25 Jul 2023 22:13:21 -0400"><![CDATA[--- PERC.csl
++++ PERC.csl
+@@ -1,1 +1,235 @@
++MODEL PERC  ! PERCHLOROETHYLENE PBPK MODEL
+ 
++! Includes two fat compartments -- No diffusion limitation
++
++INITIAL 
++
++    CONSTANT  MW = 165.85     ! PERC molecular weight
++              
++    CONSTANT   QPC = 24.0     ! Alveolar ventilation rate (l/hr)
++    CONSTANT   QCC = 16.5     ! Cardiac output (l/hr)
++    CONSTANT   QSC = 0.30
++    CONSTANT   QRC = 0.70
++    CONSTANT   QLC = 0.23     ! Fractional blood flow to liver
++    CONSTANT  QFC1 = 0.03     ! Fractional blood flow to fat
++    CONSTANT  QFC2 = 0.02     ! Fractional blood flow to fat
++    
++    CONSTANT    BW = 70.      ! Body weight (kg)
++    
++    CONSTANT   VSC = 0.65
++    CONSTANT   VRC = 0.11
++    CONSTANT  VFC1 = 0.16     ! Fraction fat tissue 1
++    CONSTANT  VFC2 = 0.05     ! Fraction fat tissue 2
++    CONSTANT  VLC  = 0.026    ! Fraction liver tissue
++    
++    CONSTANT    PL = 5.27     ! Liver/blood partition coefficient
++    CONSTANT    PF = 125.2    ! Fat/blood partition coefficient
++    CONSTANT    PS = 6.11     ! Slowly perfused tissue/blood partition
++    CONSTANT    PR = 5.06     ! Richly perfused tissue/blood partition
++    CONSTANT    PB = 11.58    ! Blood/air partition coefficient
++    
++    CONSTANT VMAXC = 0.28     ! Maximum rate of metabolism (mg/hr-1kg)
++    CONSTANT    KM = 7.7      ! Michaelis-Menten constant (mg/l)
++    CONSTANT   KFC = 0.       ! Pseudo-first order metabolism (/hr-1kg)
++    
++    CONSTANT IVDOSE = 0.      ! INTRAVENOUS DOSE mg/kg
++    CONSTANT   CONC = 0.      ! Inhaled concentration (ppm)
++    
++    ! Oral exposure route parameters
++    CONSTANT PDRINK = 0.0     ! Drinking water (mg/kg)
++    CONSTANT PDOSE = 0.0      ! Oral gavage (mg/kg)
++    CONSTANT   KAS = 0.0      ! Absorption from Stomach (hr-1)
++    CONSTANT   KAD = 0.3      ! Absorption from Duod (hr-1)
++    CONSTANT  KTSD = 2.0      ! Transfer from STomach to Duod. (hr-1)
++    CONSTANT   KTD = 0.0      ! Excretion (hr-1)
++         
++    ! Timing commands
++    CONSTANT  TSTOP = 54.     ! Length of experiment (hrs)
++    CONSTANT  TCHNG = 0.      ! Length of inhalation exposure (hrs)
++    CONSTANT   TINF =  0.01   ! Length of IV infusion (hrs)
++    CONSTANT   DAYS = 1.      ! Number of exposure/dosing days per week
++    CONSTANT   TMAX = 120.    ! Maximum time for exposures/dosing
++    
++    ! Exposure definition
++    IF (PDOSE == 0.) 
++        KA = 0.  ! Parenteral dosing
++    END
++   
++    CINTERVAL CINT  = 0.1           ! Communication interval
++   
++     ! Scaled parameters
++       QC = QCC*BW**0.75
++       QP = QPC*BW**0.75
++       QL = QLC*QC
++      QF1 = QFC1*QC
++      QF2 = QFC2*QC
++       QS = QSC*QC - QF1 -QF2
++       QR = QRC*QC-QL
++
++       VL = VLC*BW
++      VF1 = VFC1*BW
++      VF2 = VFC2*BW
++       VS = VSC*BW-VF1-VF2
++       VR = VRC*BW-VL
++
++     VMAX = VMAXC*BW**0.75
++       KF = KFC/BW**0.25
++    DRINK = PDRINK*BW/24.0
++     DOSE = PDOSE*BW
++      IVR = IVDOSE*BW/TINF     
++
++  ! Initialize oral dosing
++    TOTAL = 0.
++    TDOSE = 0.
++      DAY = 0.5
++      
++      CON = 0.0
++
++END     ! End of initial
++   
++DYNAMIC 
++   
++DISCRETE DOSE1 ! Schedule events to turn exposure on and off daily
++
++    INTERVAL DOSINT = 24.           ! (Set interval larger than TSTOP
++                                    ! to prevent multiple exposure)
++    IF (T <= TMAX && DAY <= DAYS)   
++        
++        CON = CONC                  ! Start inhalation exposure
++        AST = AST + DOSE
++        TDOSE = T                   ! Record time of dosing
++        
++        SCHEDULE DOSE2 AT T + TCHNG ! Schedule end of exposure
++    END
++   
++    DAY = DAY + 1.
++    IF (DAY > 7.0)
++        DAY=0.5
++    END
++   
++END ! of DOSE1
++
++DISCRETE DOSE2
++
++    CON = 0.  ! End inhalation exposure
++
++END ! of DOSE2
++   
++DERIVATIVE  
++
++      ! CI = Concentration in inhaled air (mg/l)
++       CI = CON * MW/24450.
++
++     ! CA = Concentration in arterial blood (mg/l)
++       CA = (QC*CV+QP*CI)/(QC+(QP/PB))
++     AUCB = INTEG(CA,0.)
++    
++     ! AX = Amount exhaled (mg)
++       CX = CA/PB 
++    CXPPM = CX*24450./MW
++      CEX = (0.5*CX+0.5*CI)
++   CEXPPM = (0.7*CX+0.3*CI)*24450./MW   
++      RAX = QP*CX 
++       AX = INTEG(RAX, 0.)
++     
++     ! AL = Amount in liver tissue (mg)
++      RAL = QL*(CA-CVL) + RAO - RAM + DRINK
++       AL = INTEG(RAL,0.)
++      CVL = AL/(VL*PL)
++       CL = AL/VL 
++     AUCL = INTEG(CL,0.)
++      
++    ! RAO = Oral Uptake Rate (mg/hr)
++      RST = -(KAS*AST + KTSD*AST)          ! Stomach (mg/hr)
++      RDU = KTSD*AST-KAD*ADU-ADU*KTD    ! Duodenum (mg/hr)
++      RAO = KAS*AST+KAD*ADU             ! Oral uptake (mg/hr)
++     REXC = ADU*KTD                     ! Excretion (mg/hr)
++       AO = INTEG(RAO,0.0)              ! Amount absorbed (mg)
++      AST = INTEG(RST,0.)       ! Amount in Stomach (mg)
++      ADU = INTEG(RDU,0.0)              ! Amount in Duod. (mg)         
++     AEXC = INTEG(REXC,0.0)             ! Amount excreted (mg)
++
++     ! AM = Amount metabolized (mg)
++     RAMS = (VMAX*CVL)/(KM+CVL) 
++      AMS = INTEG(RAMS, 0.)
++     RAML =  KF*CVL*VL 
++      AML = INTEG(RAML, 0.)
++      RAM = RAMS + RAML
++       AM = INTEG(RAM, 0.)
++     AMET = AM/VL
++     AMBW = AM/BW
++
++     ! AS = Amount in slowly perfused tissues (mg)
++      RAS = QS*(CA-CVS)
++       AS = INTEG(RAS,0.)
++      CVS = AS/(VS*PS)
++       CS = AS/VS 
++    
++     ! AR = Amount in rapidly perfused tissues (mg)
++      RAR = QR*(CA-CVR)
++       AR = INTEG(RAR,0.)
++      CVR = AR/(VR*PR)
++       CR = AR/VR 
++
++    ! AF1 = Amount of PCE in fat tissue 1 (mg)
++     RAF1 = QF1*(CA-CVF1)
++      AF1 = INTEG(RAF1,0.)
++     CVF1 = AF1/(VF1*PF)
++      CF1 = AF1/VF1
++
++    ! AF2 = Amount of PCE in fat tissue 2 (mg)
++     RAF2 = QF2*(CA-CVF2)
++      AF2 = INTEG(RAF2,0.)
++     CVF2 = AF2/(VF2*PF)
++      CF2 = AF2/VF2
++               
++     ! CV = Mixed venous blood concentration (mg/l)
++       CV = (QF1*CVF1 + QF2*CVF2 + QL*CVL + QS*CVS + QR*CVR + IV)/QC 
++      
++     ! IV = INTRAVENOUS INFUSION RATE (mg/hr)
++       IV = IVR*(1.- STEP(TINF))
++
++  ! TMASS = mass balance (mg)
++    TMASS = AF1+AF2+AL+AS+AR+AM+AX+AST+ADU+AEXC
++      
++  ! DOSEX = Net amount absorbed (mg)
++   RDOSEX = QP*(CI-CX)
++    DOSEX = INTEG(RDOSEX,0.)
++
++   RXDOSE = 1.5*QP*CI
++    XDOSE = INTEG(RXDOSE,0.)
++
++  FMetInh = RAM / (RXDOSE + 1.0e-12)   ! metabolism rate / chemical inhalation rate
++ FMetINet = RAM / (RDOSEX + 1.0e-12)  ! metabolism rate / net uptake rate
++ FMetOral = RAM / (DRINK + 1.0e-12)   ! metabolism rate / chemical ingestion rate
++ 
++    ! ----------------------------------------------------------------------
++    ! TCA submodel
++    ! ----------------------------------------------------------------------
++    
++!      CONSTANT MWT = 163.5       ! TCA MW
++!      CONSTANT FTCA = 0.9, KUC = 0.035, VDC = 0.238
++     
++!      ! Scaled parameters
++!      INITIAL
++!         STOCHT = MWT/MW
++!         KU = KUC/BW**0.25      
++!         VD = VDC*BW
++!      END
++
++!       RKU = KU*CVM*VD
++!      ACLM = INTEG(RKU,0.)
++!   ACLMBW  = ACLM/BW       ! URINARY EXCRETION - mg/kg
++                                 
++!     ! CVM = concentration of TCA in blood (mg/l)
++!       RM  = STOCHT*FTCA*RAM - RKU  
++!         M = INTEG(RM,0.)
++!       CVM = M/VD
++!      AUCM = INTEG(CVM,0.)
++
++    TERMT(T >= TSTOP) 
++
++END       ! End of derivative
++END       ! End of dynamic 
++END       ! End of program
++
+]]></modification><modification author="conrad" date="Tue, 25 Jul 2023 22:35:55 -0400"><![CDATA[--- PERC.csl
++++ PERC.csl
+@@ -207,25 +207,25 @@
+     ! TCA submodel
+     ! ----------------------------------------------------------------------
+     
+-!      CONSTANT MWT = 163.5       ! TCA MW
+-!      CONSTANT FTCA = 0.9, KUC = 0.035, VDC = 0.238
++     CONSTANT MWT = 163.5       ! TCA MW
++     CONSTANT FTCA = 0.9, KUC = 0.035, VDC = 0.238
+      
+-!      ! Scaled parameters
+-!      INITIAL
+-!         STOCHT = MWT/MW
+-!         KU = KUC/BW**0.25      
+-!         VD = VDC*BW
+-!      END
++     ! Scaled parameters
++     INITIAL
++        STOCHT = MWT/MW
++        KU = KUC/BW**0.25      
++        VD = VDC*BW
++     END
+ 
+-!       RKU = KU*CVM*VD
+-!      ACLM = INTEG(RKU,0.)
+-!   ACLMBW  = ACLM/BW       ! URINARY EXCRETION - mg/kg
++      RKU = KU*CVM*VD
++     ACLM = INTEG(RKU,0.)
++  ACLMBW  = ACLM/BW       ! URINARY EXCRETION - mg/kg
+                                  
+-!     ! CVM = concentration of TCA in blood (mg/l)
+-!       RM  = STOCHT*FTCA*RAM - RKU  
+-!         M = INTEG(RM,0.)
+-!       CVM = M/VD
+-!      AUCM = INTEG(CVM,0.)
++    ! CVM = concentration of TCA in blood (mg/l)
++      RM  = STOCHT*FTCA*RAM - RKU  
++        M = INTEG(RM,0.)
++      CVM = M/VD
++     AUCM = INTEG(CVM,0.)
+ 
+     TERMT(T >= TSTOP) 
+ 
+]]></modification></history>

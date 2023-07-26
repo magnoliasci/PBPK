@@ -1,0 +1,100 @@
+MODEL PERC_CC  ! Model of closed-chamber mouse gas uptake study
+
+INITIAL
+
+    CONSTANT MW = 165.85  ! Molecular weight of PERC
+   
+    CONSTANT CONC = 200
+    CONSTANT VCHC = 0.7
+    CONSTANT MICE = 1
+
+    ! Physiological parameters
+    CONSTANT BW=0.035
+    CONSTANT QCC=18.0, QPC=30.0
+    CONSTANT QFC=0.07, QLC=0.16, QRC=0.59
+    CONSTANT VFC=0.07, VLC=0.057, VRC=0.21
+    
+    ! Partition coefficients
+    CONSTANT PF=70.37, PL=2.34, PR=2.34, PS=3.69, PB=21.47
+    
+    ! Metabolic parameters
+    CONSTANT KM=0.45, VMAXC=1
+    
+    !!! We'll use this later...
+    !!!constant KFC = 2
+    !!!KF = KFC/BW**0.25
+
+    ! Compute QSC and VSC from other fractional values
+    QSC = 1 - QFC - QLC - QRC
+    VSC = 1 - VFC - VLC - VRC
+    
+    ! Compute scaled parameters
+    QC   = QCC*BW**0.74 
+    QP   = QPC*BW**0.74 
+    QF   = QFC*QC 
+    QL   = QLC*QC 
+    QR   = QRC*QC 
+    QS   = QSC*QC
+    VF   = VFC*BW 
+    VL   = VLC*BW 
+    VR   = VRC*BW 
+    VS   = VSC*BW
+    VCH  = VCHC - MICE*BW
+    AI0  = CONC * VCH * MW/24451.0
+
+    VMAX = VMAXC*BW**0.70
+
+    ! Simulation stop time
+    CONSTANT  TSTOP =   8.00
+
+END     ! END OF INITIAL
+
+DYNAMIC
+
+DERIVATIVE
+
+    !CI = CONCENTRATION IN INHALED AIR (MG/L)
+    RAI = MICE*QP*(CX - CI)
+     AI = INTEG(RAI,AI0)
+     CI = AI / VCH
+     CP = CI / (MW/24451.0)  ! CONVERT BACK TO PPM
+
+    !CA = ARTERIAL BLOOD CONCENTRATION
+     CA = (QP*CI + QC*CV)/(QC + (QP/PB))
+     CX = CA/PB
+
+    !AF = AMOUNT IN FAT COMPARTMENT (MG)
+    RAF = QF*(CA - CVF)
+     AF = INTEG(RAF, 0.0)
+    CVF = AF/(VF*PF)
+     CF = AF/VF
+
+    !AL = AMOUNT IN LIVER COMPARTMENT (MG)
+    RAL = QL*(CA - CVL) - RAM
+     AL = INTEG(RAL, 0.0)
+    CVL = AL/(VL*PL)
+     CL = AL/VL
+
+    !AS = AMOUNT IN SLOWLY PERFUSED TISSUES (MG)
+    RAS = QS*(CA - CVS)
+     AS = INTEG(RAS, 0.0)
+    CVS = AS/(VS*PS)
+     CS = AS/VS
+
+    !AR = AMOUNT IN RAPIDLY PERFUSED TISSUES (MG)
+    RAR = QR*(CA - CVR)
+     AR = INTEG(RAR, 0.0)
+    CVR = AR/(VR*PR)
+     CR = AR/VR
+
+    !AM = AMOUNT METABOLIZED (MG)
+    RAM = VMAX * CVL / (KM + CVL) !!! + KF*CVL*VL
+
+    !CV = MIXED VENOUS BLOOD CONCENTRATION (MG/L)'
+     CV = (QF*CVF + QL*CVL + QS*CVS + QR*CVR)/QC
+
+    TERMT(T >= TSTOP)
+
+END     ! END OF DERIVATIVE
+END     ! END OF DYNAMIC
+END     ! END OF PROGRAM
