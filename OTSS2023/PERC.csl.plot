@@ -1,1 +1,0 @@
-{"ymin":0.0,"xmin":0.0,"ylabel":"","variables":[{"name":"ast"},{"name":"ku"},{"name":"amet"},{"name":"kf"},{"name":"qf2"}],"xautorange":true,"logx":false,"logy":false,"yautorange":true,"title":"","ymax":100000.0,"xmax":100000.0,"xlabel":"","sliders":[],"parameters":[]}
